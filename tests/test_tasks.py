@@ -16,7 +16,8 @@ def test_slice_tasks_load_with_existing_datasets():
     tasks = load_slice_tasks()
     assert len(tasks) == 5
     for task in tasks:
-        assert task.expected is not None and task.expected.kind in _KINDS
+        assert task.expected is not None
+        assert all(key.kind in _KINDS for key in task.expected.keys)
         assert task.verifier == "closed_form"
         for dataset in task.datasets:
             assert dataset.path.exists(), dataset.path

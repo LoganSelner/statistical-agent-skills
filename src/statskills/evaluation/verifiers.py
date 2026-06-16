@@ -1,11 +1,12 @@
 """Closed-form verifiers — deterministic, model-free scoring (ROADMAP §8).
 
-A :class:`Verifier` scores a submitted answer string against a task's
-:class:`~statskills.tasks.schema.ExpectedAnswer`, returning a :class:`Verdict`. The
-default ``closed_form`` verifier dispatches on ``ExpectedAnswer.kind`` to a comparison
-(numeric tolerance, exact/categorical string, unordered set, regex). Verifiers are
-registered so a task selects one by name (``Task.verifier``) and future specialised
-verifiers drop in without touching the loop or the grader.
+A :class:`Verifier` scores a submitted answer against a task's ``ExpectedAnswer``,
+returning a :class:`Verdict`. The default ``closed_form`` verifier scores each
+``AnswerKey``: an unnamed key against the whole submission, a named key against its
+``@name[value]`` token (benchmark multi-part answers). Per key it dispatches on
+``kind`` (numeric tolerance, exact/categorical, set, regex). ``passed`` is all keys
+correct (DABench ABQ); ``score`` is the fraction correct (PASQ). A task selects its
+verifier by name (``Task.verifier``).
 """
 
 from __future__ import annotations
@@ -15,15 +16,15 @@ import re
 from typing import Protocol, runtime_checkable
 
 from statskills.core.registry import registry
-from statskills.tasks.schema import ExpectedAnswer, Task
+from statskills.tasks.schema import AnswerKey, Task
 
 
 @dataclass(frozen=True)
 class Verdict:
     """The outcome of scoring one submission."""
 
-    passed: bool
-    score: float  # 1.0 / 0.0 for a single closed-form answer
+    passed: bool  # all keys correct (all-or-nothing per task)
+    score: float  # fraction of keys correct
     detail: str = ""
 
 
@@ -34,7 +35,7 @@ class Verifier(Protocol):
     def score(self, submitted: str, task: Task) -> Verdict: ...
 
 
-# --- comparisons, keyed by ExpectedAnswer.kind ----------------------------------
+# --- per-key value comparisons, keyed by AnswerKey.kind -------------------------
 
 _NUMBER = re.compile(r"[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?")
 _DEFAULT_TOLERANCE = 1e-6
@@ -67,34 +68,32 @@ def _to_set(value: object) -> set[str]:
     return {_norm(i).casefold() for i in items if i}
 
 
-def _numeric(submitted: str, expected: ExpectedAnswer) -> tuple[bool, str]:
+def _numeric(submitted: str, key: AnswerKey) -> tuple[bool, str]:
     got = _extract_number(submitted)
     if got is None:
-        return False, f"no number found in {submitted!r}"
-    want = float(str(expected.value))
-    tol = expected.tolerance if expected.tolerance is not None else _DEFAULT_TOLERANCE
+        return False, f"no number in {submitted!r}"
+    want = float(str(key.value))
+    tol = key.tolerance if key.tolerance is not None else _DEFAULT_TOLERANCE
     return abs(got - want) <= tol, f"{got} vs {want} (tol {tol})"
 
 
-def _exact(submitted: str, expected: ExpectedAnswer) -> tuple[bool, str]:
-    return _norm(submitted) == _norm(
-        expected.value
-    ), f"{submitted!r} vs {expected.value!r}"
+def _exact(submitted: str, key: AnswerKey) -> tuple[bool, str]:
+    return _norm(submitted) == _norm(key.value), f"{submitted!r} vs {key.value!r}"
 
 
-def _categorical(submitted: str, expected: ExpectedAnswer) -> tuple[bool, str]:
-    ok = _norm(submitted).casefold() == _norm(expected.value).casefold()
-    return ok, f"{submitted!r} vs {expected.value!r}"
+def _categorical(submitted: str, key: AnswerKey) -> tuple[bool, str]:
+    ok = _norm(submitted).casefold() == _norm(key.value).casefold()
+    return ok, f"{submitted!r} vs {key.value!r}"
 
 
-def _set(submitted: str, expected: ExpectedAnswer) -> tuple[bool, str]:
-    got, want = _to_set(submitted), _to_set(expected.value)
+def _set(submitted: str, key: AnswerKey) -> tuple[bool, str]:
+    got, want = _to_set(submitted), _to_set(key.value)
     return got == want, f"{got} vs {want}"
 
 
-def _regex(submitted: str, expected: ExpectedAnswer) -> tuple[bool, str]:
-    ok = re.search(str(expected.value), submitted) is not None
-    return ok, f"{submitted!r} ~ /{expected.value}/"
+def _regex(submitted: str, key: AnswerKey) -> tuple[bool, str]:
+    ok = re.search(str(key.value), submitted) is not None
+    return ok, f"{submitted!r} ~ /{key.value}/"
 
 
 _COMPARISONS = {
@@ -106,21 +105,40 @@ _COMPARISONS = {
 }
 
 
+def _extract_named(text: str, name: str) -> str | None:
+    """The value inside a ``@name[value]`` token, or ``None`` if absent."""
+    match = re.search(rf"@{re.escape(name)}\[([^\]]*)\]", text)
+    return match.group(1) if match else None
+
+
 @registry.register("verifier", "closed_form")
 class ClosedFormVerifier:
-    """Scores a single closed-form answer, dispatching on ``ExpectedAnswer.kind``."""
+    """Scores each AnswerKey (the whole submission, or its ``@name[value]`` token)."""
 
     def score(self, submitted: str, task: Task) -> Verdict:
         expected = task.expected
-        if expected is None:
+        if expected is None or not expected.keys:
             return Verdict(False, 0.0, "task has no expected answer")
-        compare = _COMPARISONS.get(expected.kind)
-        if compare is None:
-            return Verdict(False, 0.0, f"unknown answer kind {expected.kind!r}")
-        if not submitted.strip():
-            return Verdict(False, 0.0, "empty submission")
-        passed, detail = compare(submitted, expected)
-        return Verdict(passed, 1.0 if passed else 0.0, detail)
+
+        results: list[tuple[str, bool, str]] = []
+        for key in expected.keys:
+            value = submitted if not key.name else _extract_named(submitted, key.name)
+            compare = _COMPARISONS.get(key.kind)
+            if compare is None:
+                results.append((key.name, False, f"unknown kind {key.kind!r}"))
+            elif value is None or not value.strip():
+                results.append((key.name, False, "missing"))
+            else:
+                passed, detail = compare(value, key)
+                results.append((key.name, passed, detail))
+
+        n = len(results)
+        n_passed = sum(passed for _, passed, _ in results)
+        detail = "; ".join(
+            f"{name or 'answer'}: {'ok' if passed else 'X'} ({d})"
+            for name, passed, d in results
+        )
+        return Verdict(n_passed == n, n_passed / n, detail)
 
 
 def get_verifier(name: str) -> Verifier:
