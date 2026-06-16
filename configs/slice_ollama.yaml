@@ -1,0 +1,13 @@
+# Local, keyless run via Ollama's OpenAI-compatible endpoint.
+# Pull the model first:  ollama pull qwen2.5-coder:7b
+# Changing the provider replaces the whole `llm:` block (impl-selector semantics), so it
+# is re-specified in full here; the top-level keys (executor, max_steps, ...) are inherited.
+extends: slice.yaml
+llm:
+  provider: ollama
+  model: qwen2.5-coder:7b
+  # Ollama runs on the Windows host. WSL2 usually forwards localhost to Windows listening
+  # ports, so the default http://localhost:11434/v1 may work as-is. If it can't reach
+  # Ollama, start it with OLLAMA_HOST=0.0.0.0 and set the host URL via OLLAMA_BASE_URL or
+  # the base_url below, e.g. http://<windows-host-ip>:11434/v1.
+  # base_url: http://<windows-host-ip>:11434/v1

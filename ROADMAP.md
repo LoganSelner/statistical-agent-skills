@@ -286,6 +286,10 @@ Constraints the design respects:
 - The RAG repo's `core/retry.py` (tenacity transient-retry) and its best-effort
   usage-extraction pattern are worth porting; its `ChatEdenAI` wrapper is not.
 
+A **local Ollama** provider is also supported through the same OpenAI-compatible client
+(`provider: ollama`, keyless) for offline / credit-free development; EdenAI remains the
+default and the required gateway for the research runs.
+
 ---
 
 ## 7. Sandbox / execution

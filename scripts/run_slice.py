@@ -3,7 +3,7 @@
 
 Loads the authored slice tasks, runs the single-agent CodeAct loop over the
 sandbox (Docker by default), and writes one trajectory JSONL plus a run.json with
-provenance. Model access is EdenAI — set EDENAI_API_KEY in .env or the environment.
+provenance. Model access is EdenAI (set EDENAI_API_KEY) or a local Ollama server.
 
 Usage:
     python scripts/run_slice.py                      # Docker executor (default)
@@ -24,7 +24,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from statskills.agent.llm import LLMClient, LLMConfig
+from statskills.agent.llm import LLMConfig, build_llm
 from statskills.agent.loop import ReActAgent
 from statskills.core.config import load_yaml_with_inheritance
 from statskills.core.provenance import RunProvenance
@@ -48,6 +48,12 @@ def _parse_args() -> argparse.Namespace:
         choices=["docker", "local"],
         default=None,
         help="Override the configured executor. 'local' is UNSANDBOXED (trusted only).",
+    )
+    p.add_argument(
+        "--provider",
+        choices=["edenai", "ollama"],
+        default=None,
+        help="Override the configured LLM provider.",
     )
     p.add_argument("--model", default=None, help="Override the provider/model id.")
     p.add_argument("--max-steps", type=int, default=None)
@@ -78,18 +84,19 @@ def main() -> int:
     load_dotenv(REPO_ROOT / ".env")
 
     cfg: dict[str, Any] = load_yaml_with_inheritance(args.config)
-    model = args.model or cfg.get("model", "openai/gpt-4o-mini")
-    temperature = float(cfg.get("temperature", 0.0))
-    max_tokens = int(cfg.get("max_tokens", 2048))
+    llm_cfg: dict[str, Any] = dict(cfg.get("llm") or {})
+    if args.provider:
+        llm_cfg["provider"] = args.provider
+    if args.model:
+        llm_cfg["model"] = args.model
+    llm_config = LLMConfig(**llm_cfg)
     max_steps = args.max_steps or int(cfg.get("max_steps", 10))
     executor_kind = args.executor or str(cfg.get("executor", "docker"))
     image = str(cfg.get("sandbox_image", "statskills-sandbox:0.1.0"))
     timeout = float(cfg.get("timeout", 60))
 
     try:
-        llm = LLMClient(
-            LLMConfig(model=model, temperature=temperature, max_tokens=max_tokens)
-        )
+        llm = build_llm(llm_config)
     except ValueError as e:
         logger.error("%s", e)
         return 1
@@ -108,8 +115,8 @@ def main() -> int:
     provenance = RunProvenance.capture()
 
     print(
-        f"\nRunning {len(tasks)} slice task(s) · model={model} · "
-        f"executor={executor_kind}\n"
+        f"\nRunning {len(tasks)} slice task(s) · provider={llm_config.provider} · "
+        f"model={llm_config.model} · executor={executor_kind}\n"
     )
     records: list[dict[str, Any]] = []
     for task in tasks:
@@ -137,9 +144,11 @@ def main() -> int:
         "run_id": run_id,
         "provenance": asdict(provenance),
         "config": {
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
+            "provider": llm_config.provider,
+            "model": llm_config.model,
+            "base_url": getattr(llm, "base_url", None),
+            "temperature": llm_config.temperature,
+            "max_tokens": llm_config.max_tokens,
             "max_steps": max_steps,
             "executor": executor_kind,
             "sandbox_image": image if executor_kind == "docker" else None,
