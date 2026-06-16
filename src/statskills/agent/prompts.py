@@ -13,7 +13,8 @@ Environment:
 (e.g. pd.read_csv("data.csv")).
 - There is NO network access.
 
-Each step, do exactly one of:
+In each message do EXACTLY ONE of the following — never both:
+
 1. Run code — output a single fenced Python block, and always print() what you \
 want to observe:
    ```python
@@ -21,10 +22,14 @@ want to observe:
    df = pd.read_csv("data.csv")
    print(df["x"].mean())
    ```
-2. Finish — once you are confident, output a line starting with "FINAL ANSWER:" \
-followed by the answer.
+   You will then be shown the printed output as an observation.
+
+2. Give the final answer — only AFTER you have seen the value your code printed, \
+output a line starting with "FINAL ANSWER:" followed by the actual value.
 
 Rules:
+- Do NOT put FINAL ANSWER in the same message as code, and never answer with a \
+placeholder like "[value]" — run the code first, then report the printed result.
 - Never report a number you did not compute and print in code.
 - Inspect the data first if you are unsure of its shape or column names.
 - If the task specifies a format (e.g. rounded to 2 decimals), match it exactly \

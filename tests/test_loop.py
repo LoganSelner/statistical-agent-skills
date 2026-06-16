@@ -63,13 +63,25 @@ def test_runs_code_then_finalizes(tmp_path: Path):
 
 def test_stops_at_max_steps_without_final(tmp_path: Path):
     task = Task(id="t2", prompt="loop", datasets=(_csv(tmp_path),))
-    code = "```python\nprint(1)\n```"
-    traj = ReActAgent(FakeLLM([code, code, code]), LocalExecutor(), max_steps=2).run(
-        task
-    )
+    codes = [
+        "```python\nprint(1)\n```",
+        "```python\nprint(2)\n```",
+        "```python\nprint(3)\n```",
+    ]
+    traj = ReActAgent(FakeLLM(codes), LocalExecutor(), max_steps=2).run(task)
     assert traj.stop_reason == "max_steps"
     assert traj.final_answer is None
-    assert len(traj.steps) == 2
+    assert [s.kind for s in traj.steps] == ["code", "code"]
+
+
+def test_repeated_code_is_nudged_not_rerun(tmp_path: Path):
+    task = Task(id="t6", prompt="x", datasets=(_csv(tmp_path),))
+    same = "```python\nprint(1)\n```"
+    traj = ReActAgent(
+        FakeLLM([same, same, "FINAL ANSWER: done"]), LocalExecutor(), max_steps=5
+    ).run(task)
+    assert [s.kind for s in traj.steps] == ["code", "repeat", "final"]
+    assert traj.final_answer == "done"
 
 
 def test_nudges_on_no_action_then_finalizes():
