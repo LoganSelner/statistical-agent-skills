@@ -12,7 +12,7 @@ tool-calling or structured-output support across EdenAI's sub-providers.
 from __future__ import annotations
 
 import os
-from typing import Any, cast
+from typing import Any, Protocol, cast, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -28,6 +28,16 @@ class LLMConfig(BaseModel):
     model: str = "openai/gpt-4o-mini"  # provider/model — set to one your key enables
     temperature: float = 0.0
     max_tokens: int = 2048
+
+
+@runtime_checkable
+class LLM(Protocol):
+    """The narrow LLM interface the agent loop depends on (LLMClient satisfies it)."""
+
+    @property
+    def model(self) -> str: ...
+
+    def complete(self, messages: list[Message]) -> LLMResponse: ...
 
 
 class LLMClient:
