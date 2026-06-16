@@ -74,14 +74,29 @@ def test_stops_at_max_steps_without_final(tmp_path: Path):
     assert [s.kind for s in traj.steps] == ["code", "code"]
 
 
-def test_repeated_code_is_nudged_not_rerun(tmp_path: Path):
+def test_repeat_with_identical_output_is_nudged(tmp_path: Path):
     task = Task(id="t6", prompt="x", datasets=(_csv(tmp_path),))
     same = "```python\nprint(1)\n```"
     traj = ReActAgent(
         FakeLLM([same, same, "FINAL ANSWER: done"]), LocalExecutor(), max_steps=5
     ).run(task)
     assert [s.kind for s in traj.steps] == ["code", "repeat", "final"]
+    assert traj.steps[1].observation is not None  # the code still ran (stateful-safe)
     assert traj.final_answer == "done"
+
+
+def test_stateful_rerun_with_new_output_is_not_a_loop(tmp_path: Path):
+    task = Task(id="t7", prompt="x", datasets=(_csv(tmp_path),))
+    inc = "```python\nn = n + 1\nprint(n)\n```"
+    traj = ReActAgent(
+        FakeLLM(["```python\nn = 0\n```", inc, inc, "FINAL ANSWER: ok"]),
+        LocalExecutor(),
+        max_steps=6,
+    ).run(task)
+    # Identical `inc` source yields a new value each run (stateful), so it is NOT
+    # flagged as a loop.
+    assert [s.kind for s in traj.steps] == ["code", "code", "code", "final"]
+    assert traj.final_answer == "ok"
 
 
 def test_nudges_on_no_action_then_finalizes():

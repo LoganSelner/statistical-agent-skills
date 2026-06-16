@@ -23,9 +23,9 @@ _NUDGE = (
     "starting with 'FINAL ANSWER:'."
 )
 _REPEAT_NUDGE = (
-    "You already ran that exact code and its output is shown above. If it answers "
-    "the task, reply now with only `FINAL ANSWER: <value>` (no code). Otherwise run "
-    "different code."
+    "You ran that exact code again and got the same output (shown above). If it "
+    "answers the task, reply now with only `FINAL ANSWER: <value>` (no code). "
+    "Otherwise run different code."
 )
 
 
@@ -51,7 +51,7 @@ class ReActAgent:
             task.prompt, filenames, system_prompt=self._system_prompt
         )
         steps: list[AgentStep] = []
-        ran_code: set[str] = set()
+        last_observation: dict[str, str] = {}
         final_answer: str | None = None
         stop_reason = "max_steps"
         prompt_tokens = completion_tokens = 0
@@ -80,31 +80,23 @@ class ReActAgent:
                     break
 
                 if isinstance(action, CodeAction):
-                    if action.code in ran_code:
-                        # Stuck re-running identical code — nudge to finalize rather
-                        # than re-execute (breaks pointless loops).
-                        messages.append({"role": "user", "content": _REPEAT_NUDGE})
-                        steps.append(
-                            AgentStep(
-                                index=i,
-                                kind="repeat",
-                                thought=resp.text,
-                                code=action.code,
-                                prompt_tokens=resp.prompt_tokens,
-                                completion_tokens=resp.completion_tokens,
-                            )
-                        )
-                        continue
-                    ran_code.add(action.code)
+                    # Always run the code: a stateful kernel can make identical source
+                    # yield a new observation (a counter, an append, an unseeded
+                    # sample), so execution must not be skipped.
                     result = session.run(action.code)
                     observation = render_observation(result)
-                    messages.append(
-                        {"role": "user", "content": f"Observation:\n{observation}"}
-                    )
+                    # A loop is identical code producing an identical observation
+                    # (genuine no-progress) — only then nudge the model to finalize.
+                    no_progress = last_observation.get(action.code) == observation
+                    last_observation[action.code] = observation
+                    content = f"Observation:\n{observation}"
+                    if no_progress:
+                        content += f"\n\n{_REPEAT_NUDGE}"
+                    messages.append({"role": "user", "content": content})
                     steps.append(
                         AgentStep(
                             index=i,
-                            kind="code",
+                            kind="repeat" if no_progress else "code",
                             thought=resp.text,
                             code=action.code,
                             observation=observation,
