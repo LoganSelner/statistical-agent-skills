@@ -7,7 +7,7 @@ SHELL := /bin/bash
 UV ?= uv
 
 # --- Phony ---
-.PHONY: help bootstrap update env sandbox-image slice test test-all \
+.PHONY: help bootstrap update env sandbox-image slice grade test test-all \
 	fmt fmt-check lint typecheck qa precommit clean deep-clean
 
 help: ## Show available targets
@@ -45,6 +45,9 @@ sandbox-image: ## Build the pinned sandbox execution image (statskills-sandbox:0
 
 slice: ## Run the Phase 1 vertical slice (needs EDENAI_API_KEY; Docker sandbox)
 	$(UV) run python scripts/run_slice.py
+
+grade: ## Grade a saved run (RUN=results/slice-...)
+	$(UV) run python scripts/grade.py $(RUN)
 
 # ---------- Code quality ----------
 test: ## Run fast tests (skip slow)

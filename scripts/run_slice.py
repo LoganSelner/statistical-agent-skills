@@ -124,13 +124,9 @@ def main() -> int:
             records.append({"task_id": task.id, "error": str(e)})
             print(f"  {task.id:18} ERROR: {e}")
             continue
-        record = traj.to_dict()
-        record["expected"] = task.expected
-        records.append(record)
-        hit = (traj.final_answer or "").strip() == (task.expected or "").strip()
+        records.append(traj.to_dict())
         print(
-            f"  {task.id:18} {'match' if hit else '-   '}  "
-            f"answer={traj.final_answer!r}  expected={task.expected!r}  "
+            f"  {task.id:18} answer={traj.final_answer!r}  "
             f"[{traj.stop_reason}, {len(traj.steps)} steps]"
         )
 
@@ -154,7 +150,7 @@ def main() -> int:
         "tasks": [t.id for t in tasks],
     }
     (out_dir / "run.json").write_text(json.dumps(meta, indent=2))
-    print(f"\nWrote trajectories + run.json to {out_dir}\n")
+    print(f"\nWrote {out_dir}\nGrade it: uv run python scripts/grade.py {out_dir}\n")
     return 0
 
 
