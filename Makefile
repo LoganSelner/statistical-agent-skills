@@ -7,7 +7,7 @@ SHELL := /bin/bash
 UV ?= uv
 
 # --- Phony ---
-.PHONY: help bootstrap update env test test-all \
+.PHONY: help bootstrap update env sandbox-image test test-all \
 	fmt fmt-check lint typecheck qa precommit clean deep-clean
 
 help: ## Show available targets
@@ -37,6 +37,11 @@ env: ## Print tool versions
 	@echo "Ruff:    $$($(UV) run ruff --version || true)"
 	@echo "Mypy:    $$($(UV) run mypy --version || true)"
 	@echo "pytest:  $$($(UV) run pytest --version | head -n1 || true)"
+
+# ---------- Sandbox ----------
+sandbox-image: ## Build the pinned sandbox execution image (statskills-sandbox:0.1.0)
+	docker build -f src/statskills/sandbox/Dockerfile \
+		-t statskills-sandbox:0.1.0 src/statskills/sandbox
 
 # ---------- Code quality ----------
 test: ## Run fast tests (skip slow)

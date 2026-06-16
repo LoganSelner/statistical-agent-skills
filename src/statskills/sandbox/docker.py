@@ -1,0 +1,131 @@
+"""Docker-backed executor — the secure default (ROADMAP §7).
+
+Runs the sandbox driver inside a fresh, network-isolated container per session
+(``docker run -i --network none`` with memory/cpu/pid limits, non-root). If
+Docker is unavailable or the image is missing, construction raises
+:class:`DockerError` — there is **no silent fallback to local execution**.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import uuid
+
+from statskills.sandbox.base import Session
+from statskills.sandbox.session import SubprocessSession
+
+DEFAULT_IMAGE = "statskills-sandbox:0.1.0"
+
+
+class DockerError(RuntimeError):
+    """Docker is unavailable or misconfigured. The harness never falls back."""
+
+
+class DockerExecutor:
+    """Runs each session in a fresh, isolated container of a pinned image."""
+
+    def __init__(
+        self,
+        image: str = DEFAULT_IMAGE,
+        *,
+        timeout: float = 30.0,
+        memory: str = "2g",
+        cpus: str = "2",
+        pids_limit: int = 256,
+    ) -> None:
+        self._image = image
+        self._timeout = timeout
+        self._memory = memory
+        self._cpus = cpus
+        self._pids_limit = pids_limit
+        self._preflight()
+
+    def _preflight(self) -> None:
+        try:
+            subprocess.run(
+                ["docker", "version", "--format", "{{.Server.Version}}"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        except FileNotFoundError as e:
+            raise DockerError("docker CLI not found on PATH.") from e
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+            raise DockerError(
+                "Docker daemon is not reachable. Start Docker and retry — the "
+                "harness does not fall back to local execution."
+            ) from e
+        if (
+            subprocess.run(
+                ["docker", "image", "inspect", self._image],
+                capture_output=True,
+                text=True,
+            ).returncode
+            != 0
+        ):
+            raise DockerError(
+                f"Sandbox image '{self._image}' not found. Build it with "
+                "`make sandbox-image`."
+            )
+
+    @property
+    def image_digest(self) -> str:
+        """The image content id (sha256) — recorded in provenance (ROADMAP §9)."""
+        out = subprocess.run(
+            ["docker", "image", "inspect", "--format", "{{.Id}}", self._image],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return out.stdout.strip()
+
+    def start(self, datasets: tuple[Path, ...] = ()) -> Session:
+        workdir = tempfile.mkdtemp(prefix="statskills-docker-")
+        for ds in datasets:
+            shutil.copy(ds, Path(workdir) / ds.name)
+        name = f"statskills-{uuid.uuid4().hex[:12]}"
+        command = [
+            "docker",
+            "run",
+            "-i",
+            "--rm",
+            "--name",
+            name,
+            "--network",
+            "none",
+            "--memory",
+            self._memory,
+            "--memory-swap",
+            self._memory,
+            "--cpus",
+            self._cpus,
+            "--pids-limit",
+            str(self._pids_limit),
+            "--user",
+            f"{os.getuid()}:{os.getgid()}",
+            "-e",
+            "HOME=/work",
+            "-v",
+            f"{workdir}:/work",
+            "-w",
+            "/work",
+            self._image,
+            "python",
+            "/opt/kernel_driver.py",
+        ]
+
+        def terminate() -> None:
+            subprocess.run(["docker", "kill", name], capture_output=True, text=True)
+
+        return SubprocessSession(
+            command,
+            timeout=self._timeout,
+            cwd=None,
+            terminate=terminate,
+            cleanup_dir=workdir,
+        )

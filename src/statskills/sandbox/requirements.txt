@@ -1,0 +1,10 @@
+# Pinned scientific stack for the sandbox execution image. Versions are kept in
+# parity with the dev group (pyproject.toml) so local-executor tests and the
+# Docker sandbox behave identically. Bump deliberately — defaults (e.g. scipy's)
+# are part of reproducibility, and the image digest is recorded in provenance.
+numpy==2.4.6
+scipy==1.17.1
+pandas==3.0.3
+statsmodels==0.14.6
+pyarrow==24.0.0
+ipython==9.14.1
