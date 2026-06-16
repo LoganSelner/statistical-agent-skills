@@ -4,20 +4,11 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 # --- Vars ---
-UV      ?= uv
-HOST    ?= 0.0.0.0
-PORT    ?= 8000
-APP     ?= app.main:app
-IMAGE   ?= phase0-app
-TAG     ?= local
-FULL_IMAGE := $(IMAGE):$(TAG)
-CONTAINER_NAME ?= phase0
-DOCKER  ?= docker
+UV ?= uv
 
 # --- Phony ---
-.PHONY: help bootstrap update env dev serve test fmt fmt-check lint typecheck qa \
-	clean deep-clean \
-	docker-build docker-rebuild docker-run docker-run-d docker-stop docker-logs docker-shell
+.PHONY: help bootstrap update env test test-all \
+	fmt fmt-check lint typecheck qa precommit clean deep-clean
 
 help: ## Show available targets
 	@awk '\
@@ -47,54 +38,32 @@ env: ## Print tool versions
 	@echo "Mypy:    $$($(UV) run mypy --version || true)"
 	@echo "pytest:  $$($(UV) run pytest --version | head -n1 || true)"
 
-# ---------- App ----------
-dev: ## FastAPI with auto-reload
-	$(UV) run uvicorn $(APP) --reload --host $(HOST) --port $(PORT)
+# ---------- Code quality ----------
+test: ## Run fast tests (skip slow)
+	$(UV) run pytest -m "not slow"
 
-serve: ## FastAPI like prod (no reload)
-	$(UV) run uvicorn $(APP) --host $(HOST) --port $(PORT)
-
-test: ## Pytest
+test-all: ## Run all tests including slow
 	$(UV) run pytest
 
-# ---------- Code quality (dev UX uses project env; CI uses pre-commit manual) ----------
-fmt: ## Apply fixes now (ruff imports + format)
+fmt: ## Auto-fix lint + format
 	$(UV) run ruff check --select I --fix src tests || true
+	$(UV) run ruff check --fix src tests || true
 	$(UV) run ruff format .
 
-fmt-check: ## Non-mutating gate (CI/local)
+fmt-check: ## Check formatting (CI gate)
 	$(UV) run ruff check --select I src tests
 	$(UV) run ruff format --check .
 
 lint: ## Ruff lint
 	$(UV) run ruff check .
 
-typecheck: ## Mypy
+typecheck: ## Mypy type check
 	$(UV) run mypy
 
 qa: fmt-check typecheck lint test ## Full quality gate
 
-# ---------- Docker (uv multi-stage Dockerfile) ----------
-docker-build: ## Build image (cached)
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(FULL_IMAGE) .
-
-docker-rebuild: ## Build image (no cache)
-	DOCKER_BUILDKIT=1 $(DOCKER) build --no-cache -t $(FULL_IMAGE) .
-
-docker-run: ## Run foreground
-	$(DOCKER) run --rm --init -p $(PORT):$(PORT) $(FULL_IMAGE)
-
-docker-run-d: ## Run detached
-	$(DOCKER) run -d --rm --init -p $(PORT):$(PORT) --name $(CONTAINER_NAME) $(FULL_IMAGE)
-
-docker-stop: ## Stop detached
-	-$(DOCKER) stop $(CONTAINER_NAME)
-
-docker-logs: ## Follow logs
-	$(DOCKER) logs -f $(CONTAINER_NAME)
-
-docker-shell: ## Shell in image
-	$(DOCKER) run --rm -it --entrypoint /bin/bash $(FULL_IMAGE)
+precommit: ## Run all pre-commit hooks on tracked files
+	$(UV) run pre-commit run --all-files
 
 # ---------- Housekeeping ----------
 clean: ## Remove caches
@@ -103,5 +72,5 @@ clean: ## Remove caches
 	-find . -type d -name ".pytest_cache" -prune -exec rm -rf {} +
 	-find . -type d -name ".mypy_cache" -prune -exec rm -rf {} +
 
-deep-clean: clean ## Also remove build artifacts
-	-rm -rf build dist *.egg-info
+deep-clean: clean ## Also remove env and build artifacts
+	-rm -rf .venv htmlcov coverage.xml .dist build dist *.egg-info
