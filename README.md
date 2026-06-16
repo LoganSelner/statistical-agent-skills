@@ -41,12 +41,16 @@ Run `make help` for all targets. Common ones:
 
 ## Configuration
 
-Model access goes through **EdenAI** (OpenAI-compatible endpoint, reached with the
-`openai` SDK). Copy the example env file and add your key:
+Model access goes through an OpenAI-compatible client with two providers:
 
-```bash
-cp .env.example .env     # then set EDENAI_API_KEY=...
-```
+- **EdenAI** (default) — a hosted gateway. Copy the example env file and add your key:
+  ```bash
+  cp .env.example .env     # then set EDENAI_API_KEY=...
+  ```
+- **Ollama** — a local, keyless server. Use `--provider ollama` (defaults to
+  `qwen2.5-coder:7b`) or the ready-made `configs/slice_ollama.yaml`; override the
+  endpoint with `OLLAMA_BASE_URL` if the default `http://localhost:11434/v1` can't
+  reach it.
 
 ## Run the vertical slice
 
@@ -57,9 +61,16 @@ make slice               # run the agent over the 5 authored tasks
 
 Code executes in a fresh, **network-isolated** Docker container per task; if Docker is
 unavailable the run fails rather than silently executing locally. Trajectories and a
-`run.json` with provenance (git SHA, model id, sandbox image digest) are written under
-`results/`. `--executor local` opts into an unsandboxed local kernel for trusted
-debugging only.
+`run.json` with provenance (git SHA, provider, model id, sandbox image digest) are
+written under `results/`. `--executor local` opts into an unsandboxed local kernel for
+trusted debugging only.
+
+To run fully locally with Ollama (no credits needed):
+
+```bash
+ollama pull qwen2.5-coder:7b
+uv run python scripts/run_slice.py --config configs/slice_ollama.yaml
+```
 
 ## Project layout
 

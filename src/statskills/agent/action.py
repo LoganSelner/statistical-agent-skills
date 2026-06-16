@@ -6,9 +6,11 @@ answer with a ``FINAL ANSWER:`` marker. This module is the harness-side parser �
 deliberately independent of any provider's tool-calling so the loop is robust
 behind the EdenAI gateway regardless of sub-provider (ROADMAP §6).
 
-Precedence: a ``FINAL ANSWER:`` marker wins (the model is signalling it is done,
-even if it sloppily also included code); otherwise the first code block is the
-action; otherwise there is nothing to act on (``None``) and the loop re-prompts.
+Precedence: a code block wins. Many models pre-write a placeholder ``FINAL ANSWER``
+alongside the code they intend to run (e.g. ``FINAL ANSWER: [the mean]``), so the
+harness must run the code first — finalising on the placeholder would never compute
+anything. Only when there is no code to run does a ``FINAL ANSWER:`` marker finalise;
+otherwise there is nothing to act on (``None``) and the loop re-prompts.
 """
 
 from __future__ import annotations
@@ -45,16 +47,16 @@ Action = CodeAction | FinalAnswer | None
 def parse_action(text: str) -> Action:
     """Parse one assistant turn into a :data:`Action`.
 
-    Returns a :class:`FinalAnswer` if the turn declares one, else a
-    :class:`CodeAction` for the first code block, else ``None``.
+    Returns a :class:`CodeAction` for the first non-empty code block (run it before
+    finalising), else a :class:`FinalAnswer` if the turn declares one, else ``None``.
     """
-    final = _FINAL_ANSWER.search(text)
-    if final:
-        return FinalAnswer(answer=final.group(1).strip())
-
     for block in _CODE_BLOCK.findall(text):
         code = block.strip()
         if code:
             return CodeAction(code=code)
+
+    final = _FINAL_ANSWER.search(text)
+    if final:
+        return FinalAnswer(answer=final.group(1).strip())
 
     return None

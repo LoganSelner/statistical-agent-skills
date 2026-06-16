@@ -29,11 +29,14 @@ def test_final_answer_is_case_insensitive_and_multiline():
     assert action.answer == "line1\nline2"
 
 
-def test_final_answer_wins_over_code():
-    # The model is signalling it is done, even if it also pasted code.
-    action = parse_action("```python\nprint(42)\n```\nFINAL ANSWER: 42")
-    assert isinstance(action, FinalAnswer)
-    assert action.answer == "42"
+def test_code_runs_before_a_placeholder_final_answer():
+    # Models often pre-write a placeholder answer alongside the code they intend to
+    # run; the harness must run the code, not finalize on the placeholder.
+    action = parse_action(
+        "```python\nprint(df['x'].mean())\n```\nFINAL ANSWER: [the mean]"
+    )
+    assert isinstance(action, CodeAction)
+    assert action.code == "print(df['x'].mean())"
 
 
 def test_first_nonempty_code_block_used():

@@ -22,6 +22,11 @@ _NUDGE = (
     "Please respond with either a single ```python code block to run, or a line "
     "starting with 'FINAL ANSWER:'."
 )
+_REPEAT_NUDGE = (
+    "You already ran that exact code and its output is shown above. If it answers "
+    "the task, reply now with only `FINAL ANSWER: <value>` (no code). Otherwise run "
+    "different code."
+)
 
 
 class ReActAgent:
@@ -46,6 +51,7 @@ class ReActAgent:
             task.prompt, filenames, system_prompt=self._system_prompt
         )
         steps: list[AgentStep] = []
+        ran_code: set[str] = set()
         final_answer: str | None = None
         stop_reason = "max_steps"
         prompt_tokens = completion_tokens = 0
@@ -74,6 +80,22 @@ class ReActAgent:
                     break
 
                 if isinstance(action, CodeAction):
+                    if action.code in ran_code:
+                        # Stuck re-running identical code — nudge to finalize rather
+                        # than re-execute (breaks pointless loops).
+                        messages.append({"role": "user", "content": _REPEAT_NUDGE})
+                        steps.append(
+                            AgentStep(
+                                index=i,
+                                kind="repeat",
+                                thought=resp.text,
+                                code=action.code,
+                                prompt_tokens=resp.prompt_tokens,
+                                completion_tokens=resp.completion_tokens,
+                            )
+                        )
+                        continue
+                    ran_code.add(action.code)
                     result = session.run(action.code)
                     observation = render_observation(result)
                     messages.append(
