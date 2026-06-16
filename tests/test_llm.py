@@ -1,4 +1,4 @@
-"""Tests for the EdenAI LLM client (with an injected fake SDK client)."""
+"""Tests for the OpenAI-compatible LLM client and the provider factory."""
 
 from __future__ import annotations
 
@@ -6,8 +6,10 @@ from typing import Any
 
 import pytest
 
-from statskills.agent.llm import LLMClient, LLMConfig
+from statskills.agent.llm import LLMClient, LLMConfig, build_llm
 from statskills.core.types import Message
+
+# --- fakes for the injected SDK client ------------------------------------------
 
 
 class _FakeMessage:
@@ -56,6 +58,9 @@ class _FakeOpenAI:
         self.chat = type("_Chat", (), {"completions": _FakeCompletions(response)})()
 
 
+# --- complete() is provider-agnostic --------------------------------------------
+
+
 def test_complete_extracts_text_usage_and_forwards_params():
     fake = _FakeOpenAI(
         _FakeCompletion("hello", model="openai/gpt-4o", usage=_FakeUsage(10, 5))
@@ -69,7 +74,7 @@ def test_complete_extracts_text_usage_and_forwards_params():
     resp = client.complete(msgs)
 
     assert resp.text == "hello"
-    assert resp.model == "openai/gpt-4o"  # routed id echoed by the gateway
+    assert resp.model == "openai/gpt-4o"
     assert resp.prompt_tokens == 10
     assert resp.completion_tokens == 5
 
@@ -84,12 +89,50 @@ def test_complete_handles_missing_usage_and_content():
     fake = _FakeOpenAI(_FakeCompletion(None, usage=None))
     client = LLMClient(client=fake)
     resp = client.complete([{"role": "user", "content": "hi"}])
-    assert resp.text == ""  # None content normalized to ""
+    assert resp.text == ""
     assert resp.prompt_tokens is None
     assert resp.completion_tokens is None
 
 
-def test_missing_api_key_raises(monkeypatch: pytest.MonkeyPatch):
+# --- build_llm factory (no network: openai.OpenAI() does not connect) ------------
+
+
+def test_build_llm_edenai_resolves_base_url(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("EDENAI_API_KEY", "test-key")
+    llm = build_llm(LLMConfig(provider="edenai"))
+    assert isinstance(llm, LLMClient)
+    assert llm.base_url == "https://api.edenai.run/v3"
+
+
+def test_build_llm_edenai_missing_key_raises(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("EDENAI_API_KEY", raising=False)
     with pytest.raises(ValueError, match="EDENAI_API_KEY"):
-        LLMClient()
+        build_llm(LLMConfig(provider="edenai"))
+
+
+def test_build_llm_ollama_is_keyless_with_default_base_url(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    monkeypatch.delenv("EDENAI_API_KEY", raising=False)  # not needed for ollama
+    llm = build_llm(LLMConfig(provider="ollama", model="qwen2.5-coder:7b"))
+    assert isinstance(llm, LLMClient)
+    assert llm.base_url == "http://localhost:11434/v1"
+    assert llm.model == "qwen2.5-coder:7b"
+
+
+def test_build_llm_base_url_precedence(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-host:11434/v1")
+    # config base_url wins over the env override...
+    llm = build_llm(LLMConfig(provider="ollama", base_url="http://cfg-host:11434/v1"))
+    assert isinstance(llm, LLMClient)
+    assert llm.base_url == "http://cfg-host:11434/v1"
+    # ...and the env override wins over the preset default.
+    llm2 = build_llm(LLMConfig(provider="ollama"))
+    assert isinstance(llm2, LLMClient)
+    assert llm2.base_url == "http://env-host:11434/v1"
+
+
+def test_build_llm_unknown_provider_raises():
+    with pytest.raises(ValueError, match="Unknown LLM provider"):
+        build_llm(LLMConfig(provider="nope"))
