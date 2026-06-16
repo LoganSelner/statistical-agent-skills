@@ -52,3 +52,32 @@ def test_docker_executor_stateful_isolated_and_reads_data(tmp_path: Path):
         assert not r3.ok
     finally:
         sess.close()
+
+
+def test_docker_runs_as_nonroot():
+    sess = DockerExecutor(timeout=60).start()
+    try:
+        r = sess.run("import os; print(os.getuid())")
+        assert r.ok, r.stderr
+        assert r.stdout.strip() == "1000"  # never root, even on a root host
+    finally:
+        sess.close()
+
+
+def test_docker_datasets_read_only_but_scratch_writable(tmp_path: Path):
+    csv = tmp_path / "data.csv"
+    csv.write_text("a\n1\n2\n")
+    sess = DockerExecutor(timeout=60).start(datasets=(csv,))
+    try:
+        # The mounted dataset cannot be overwritten...
+        clobber = sess.run("open('data.csv', 'w').write('x')")
+        assert not clobber.ok
+        # ...and still reads as the original for later cells.
+        r = sess.run("print(open('data.csv').read())")
+        assert "1" in r.stdout and "x" not in r.stdout
+        # ...while non-dataset scratch in /work is writable.
+        scratch = sess.run("open('scratch.txt', 'w').write('ok'); print('wrote')")
+        assert scratch.ok, scratch.stderr
+        assert "wrote" in scratch.stdout
+    finally:
+        sess.close()

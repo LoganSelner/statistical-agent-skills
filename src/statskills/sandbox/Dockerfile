@@ -13,6 +13,10 @@ RUN pip install --no-cache-dir -r /opt/requirements.txt
 
 COPY driver.py /opt/kernel_driver.py
 
+# Writable scratch owned by the non-root sandbox user (uid 1000 == the
+# DockerExecutor --user). Datasets are bind-mounted here read-only at run time.
+RUN mkdir -p /work && chown 1000:1000 /work
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 

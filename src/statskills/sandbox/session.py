@@ -13,6 +13,7 @@ import json
 import select
 import shutil
 import subprocess
+import time
 
 from statskills.sandbox.base import ExecResult
 
@@ -55,29 +56,40 @@ class SubprocessSession:
             self._closed = True
             return ExecResult("", "sandbox process is not accepting input.", ok=False)
 
-        ready, _, _ = select.select([self._proc.stdout], [], [], self._timeout)
-        if not ready:
-            self._kill()
-            return ExecResult(
-                "",
-                f"execution timed out after {self._timeout:.0f}s.",
-                ok=False,
-                timed_out=True,
-            )
-
-        line = self._proc.stdout.readline()
-        if not line:
-            self._closed = True
-            return ExecResult(
-                "", "sandbox produced no output (process died).", ok=False
-            )
-
-        data = json.loads(line)
-        return ExecResult(
-            stdout=data.get("stdout", ""),
-            stderr=data.get("stderr", ""),
-            ok=bool(data.get("ok", False)),
-        )
+        # Read until a well-formed protocol response, re-selecting against the
+        # remaining budget. The driver isolates cell output on a private channel,
+        # so stray lines here are rare — but tolerate them rather than crash the
+        # task on a JSONDecodeError.
+        deadline = time.monotonic() + self._timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if (
+                remaining <= 0
+                or not select.select([self._proc.stdout], [], [], remaining)[0]
+            ):
+                self._kill()
+                return ExecResult(
+                    "",
+                    f"execution timed out after {self._timeout:.0f}s.",
+                    ok=False,
+                    timed_out=True,
+                )
+            line = self._proc.stdout.readline()
+            if not line:
+                self._closed = True
+                return ExecResult(
+                    "", "sandbox produced no output (process died).", ok=False
+                )
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict) and "ok" in data:
+                return ExecResult(
+                    stdout=data.get("stdout", ""),
+                    stderr=data.get("stderr", ""),
+                    ok=bool(data.get("ok", False)),
+                )
 
     def close(self) -> None:
         if not self._closed:

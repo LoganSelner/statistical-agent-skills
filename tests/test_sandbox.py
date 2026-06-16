@@ -66,3 +66,24 @@ def test_closed_session_returns_error():
     r = sess.run("print(1)")
     assert not r.ok
     assert "closed" in r.stderr
+
+
+def test_captures_raw_fd_and_subprocess_output():
+    # print, a direct fd-1 write, and a subprocess's stdout must all be captured
+    # (not leak onto the protocol channel and crash the task).
+    sess = LocalExecutor().start()
+    try:
+        r = sess.run(
+            "import os\n"
+            "print('via-print')\n"
+            "os.write(1, b'via-fd1\\n')\n"
+            "os.system('echo via-subprocess')"
+        )
+        assert r.ok, r.stderr
+        assert "via-print" in r.stdout
+        assert "via-fd1" in r.stdout
+        assert "via-subprocess" in r.stdout
+        # The protocol survived the raw writes — the next cell still works.
+        assert sess.run("print(6 * 7)").stdout.strip() == "42"
+    finally:
+        sess.close()

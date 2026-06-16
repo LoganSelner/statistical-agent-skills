@@ -19,6 +19,10 @@ from statskills.sandbox.base import Session
 from statskills.sandbox.session import SubprocessSession
 
 DEFAULT_IMAGE = "statskills-sandbox:0.1.0"
+# Fixed non-root UID the sandbox runs as. Matches the `sandbox` user and the chown
+# of /work in the image Dockerfile, so model code never runs as root — even when
+# the harness itself runs as root (CI / devcontainers).
+_SANDBOX_UID = 1000
 
 
 class DockerError(RuntimeError):
@@ -85,9 +89,19 @@ class DockerExecutor:
         return out.stdout.strip()
 
     def start(self, datasets: tuple[Path, ...] = ()) -> Session:
-        workdir = tempfile.mkdtemp(prefix="statskills-docker-")
+        # Stage read-only copies of the datasets on the host, then bind-mount each
+        # into the working dir read-only — cell code can read them but never
+        # overwrite them (which would corrupt later cells in the same stateful
+        # task). Scratch is the image's writable, sandbox-owned /work, so nothing
+        # writable on the host is exposed.
+        staging = tempfile.mkdtemp(prefix="statskills-docker-")
+        mounts: list[str] = []
         for ds in datasets:
-            shutil.copy(ds, Path(workdir) / ds.name)
+            dest = Path(staging) / ds.name
+            shutil.copy(ds, dest)
+            os.chmod(dest, 0o644)  # world-readable for the sandbox UID
+            mounts += ["-v", f"{dest}:/work/{ds.name}:ro"]
+
         name = f"statskills-{uuid.uuid4().hex[:12]}"
         command = [
             "docker",
@@ -107,11 +121,10 @@ class DockerExecutor:
             "--pids-limit",
             str(self._pids_limit),
             "--user",
-            f"{os.getuid()}:{os.getgid()}",
+            f"{_SANDBOX_UID}:{_SANDBOX_UID}",
             "-e",
             "HOME=/work",
-            "-v",
-            f"{workdir}:/work",
+            *mounts,
             "-w",
             "/work",
             self._image,
@@ -127,5 +140,5 @@ class DockerExecutor:
             timeout=self._timeout,
             cwd=None,
             terminate=terminate,
-            cleanup_dir=workdir,
+            cleanup_dir=staging,
         )
