@@ -126,7 +126,9 @@ class ClosedFormVerifier:
             compare = _COMPARISONS.get(key.kind)
             if compare is None:
                 results.append((key.name, False, f"unknown kind {key.kind!r}"))
-            elif value is None or not value.strip():
+            elif value is None:
+                # Absent named token only. A present-but-empty value (``@name[]``) is a
+                # real answer ("none"), so it is compared — empty ground truth can pass.
                 results.append((key.name, False, "missing"))
             else:
                 passed, detail = compare(value, key)

@@ -113,5 +113,24 @@ def test_multi_key_missing_key_fails():
     assert "missing" in v.detail
 
 
+def test_empty_named_value_matches_empty_expected():
+    # DABench labels an empty answer (e.g. "no outliers") as ``@name[]``; the exact
+    # empty token must pass, not be treated as a missing answer.
+    expected = ExpectedAnswer(keys=(AnswerKey("", "categorical", name="outliers"),))
+    assert _score("@outliers[]", expected).passed
+
+
+def test_absent_named_token_is_missing_even_for_empty_expected():
+    # Omitting the token entirely is still missing — the model asserted nothing.
+    expected = ExpectedAnswer(keys=(AnswerKey("", "categorical", name="outliers"),))
+    v = _score("the dataset has no outliers", expected)
+    assert not v.passed and "missing" in v.detail
+
+
+def test_empty_named_value_fails_when_expected_is_nonempty():
+    expected = ExpectedAnswer(keys=(AnswerKey("South", "categorical", name="region"),))
+    assert not _score("@region[]", expected).passed
+
+
 def test_get_verifier_resolves_closed_form():
     assert isinstance(get_verifier("closed_form"), ClosedFormVerifier)
