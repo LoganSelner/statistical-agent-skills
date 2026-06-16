@@ -9,10 +9,12 @@ on / off / self-generated, skill disclosure level, task arm — and scores close
 answers with deterministic verifiers. See **[ROADMAP.md](ROADMAP.md)** for the research
 framing, the layered architecture, and the phased build plan.
 
-> **Status: Phase 0 — foundation.** The project-agnostic harness `core/` (component
-> registry, YAML config loading with `extends:` inheritance, run provenance, retry policy)
-> is in place. The agent, sandbox, tasks, skills, and evaluation layers land in later
-> phases.
+> **Status: Phase 1 — vertical slice.** The harness runs end-to-end: a single-agent
+> ReAct loop with a CodeAct action protocol (harness-parsed Python, not provider
+> tool-calling) drives the EdenAI client over a stateful sandbox kernel (Docker default,
+> network-isolated), validated on five authored tasks. Skills and deterministic scoring
+> land in later phases; the project-agnostic `core/` (registry, `extends:` config
+> loading, provenance, retry) underpins it all.
 
 ## Prerequisites
 
@@ -46,13 +48,31 @@ Model access goes through **EdenAI** (OpenAI-compatible endpoint, reached with t
 cp .env.example .env     # then set EDENAI_API_KEY=...
 ```
 
+## Run the vertical slice
+
+```bash
+make sandbox-image       # build the pinned execution image (one time, needs Docker)
+make slice               # run the agent over the 5 authored tasks
+```
+
+Code executes in a fresh, **network-isolated** Docker container per task; if Docker is
+unavailable the run fails rather than silently executing locally. Trajectories and a
+`run.json` with provenance (git SHA, model id, sandbox image digest) are written under
+`results/`. `--executor local` opts into an unsandboxed local kernel for trusted
+debugging only.
+
 ## Project layout
 
 ```
 src/statskills/
   core/              # project-agnostic harness: registry, config, provenance, retry
+  agent/             # EdenAI client, CodeAct action parser, ReAct loop, trajectory
+  sandbox/           # Executor interface + Docker (default) & local backends + image
+  tasks/             # Task schema + authored slice tasks
+configs/             # YAML configs (extends: inheritance)
+data/authored/       # small bundled datasets for the authored tasks
+scripts/run_slice.py # end-to-end Phase 1 runner
 tests/               # pytest suite
-configs/             # YAML experiment configs (extends: inheritance)   [later phases]
 ROADMAP.md           # research framing + architecture + phased plan
 ```
 

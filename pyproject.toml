@@ -13,10 +13,12 @@ dependencies = [
     "python-dotenv>=1.0",   # Load EDENAI_API_KEY etc. from .env at the app boundary
     "tenacity>=8",          # Transient-failure retry policy for external calls
     "rich>=13",             # Readable CLI / log output
+    "openai>=1.0",          # EdenAI gateway via the OpenAI-compatible /v3 endpoint
 ]
-# The scientific stack (numpy/scipy/pandas/statsmodels), the `openai` SDK (EdenAI
-# gateway), and the sandbox dependency are added in Phase 1+ alongside the modules
-# that use them, so each phase's dependencies are justified by its code.
+# The scientific stack (numpy/scipy/pandas/statsmodels) is deliberately NOT a harness
+# runtime dependency: model-generated analysis code runs inside the sandbox, so those
+# libs are pinned in the sandbox image (its digest -> provenance). They appear in the
+# `dev` group only so the local test executor can run that code without Docker.
 
 [dependency-groups]
 dev = [
@@ -25,6 +27,15 @@ dev = [
     "pytest",
     "pre-commit",
     "types-pyyaml>=6.0.12.20250915",
+    # Local-executor / sandbox-parity stack — lets `LocalExecutor` run the agent's
+    # analysis code in-process for tests. The production `DockerExecutor` ignores
+    # these and uses the pinned versions baked into the sandbox image instead.
+    "ipython>=8",
+    "numpy>=2",
+    "pandas>=2",
+    "scipy>=1.13",
+    "statsmodels>=0.14",
+    "pyarrow>=16",
 ]
 
 [build-system]
@@ -67,6 +78,11 @@ module = ["tests.*"]
 disallow_untyped_defs = false
 check_untyped_defs = true
 warn_unreachable = false
+
+# IPython (used only by the self-contained sandbox driver) ships no type stubs.
+[[tool.mypy.overrides]]
+module = ["IPython.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-q -ra --strict-markers"

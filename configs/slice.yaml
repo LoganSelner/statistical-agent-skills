@@ -1,0 +1,9 @@
+# Phase 1 vertical-slice config.
+# Model access is EdenAI (OpenAI-compatible /v3) — set EDENAI_API_KEY in .env.
+model: openai/gpt-4o-mini       # provider/model — set to one your EdenAI key enables
+temperature: 0.0
+max_tokens: 2048
+max_steps: 10
+executor: docker                # docker (default, sandboxed) | local (trusted only)
+sandbox_image: statskills-sandbox:0.1.0
+timeout: 60                     # per-cell wall-clock seconds
