@@ -47,9 +47,10 @@ Model access goes through an OpenAI-compatible client with two providers:
   ```bash
   cp .env.example .env     # then set EDENAI_API_KEY=...
   ```
-- **Ollama** — a local, keyless server. Use `--provider ollama` or the ready-made
-  `configs/slice_ollama.yaml`; override the endpoint with `OLLAMA_BASE_URL` if the
-  default `http://localhost:11434/v1` can't reach it.
+- **Ollama** — a local, keyless server. Use `--provider ollama` (defaults to
+  `qwen2.5-coder:7b`) or the ready-made `configs/slice_ollama.yaml`; override the
+  endpoint with `OLLAMA_BASE_URL` if the default `http://localhost:11434/v1` can't
+  reach it.
 
 ## Run the vertical slice
 

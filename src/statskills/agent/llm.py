@@ -2,7 +2,7 @@
 
 The harness talks to LLMs through OpenAI's chat-completions API. Two providers are
 supported today and both speak that API, so they share **one** client and differ
-only in base URL and key policy:
+only in base URL, key policy, and default model:
 
 - ``edenai`` — the EdenAI gateway (``/v3``); ``model`` is the routed ``provider/model``
   string (e.g. ``"openai/gpt-4o"``), which doubles as the provenance id. Needs
@@ -32,7 +32,7 @@ class LLMConfig(BaseModel):
     """Configuration for an OpenAI-compatible LLM."""
 
     provider: str = "edenai"  # "edenai" | "ollama"
-    model: str = "openai/gpt-4o-mini"  # provider/model (edenai) or tag (ollama)
+    model: str | None = None  # provider/model (edenai) or tag (ollama); None → default
     temperature: float = 0.0
     max_tokens: int = 2048
     base_url: str | None = None  # override the provider's default base URL
@@ -40,17 +40,23 @@ class LLMConfig(BaseModel):
 
 @dataclass(frozen=True)
 class _Provider:
-    """A provider preset: where to reach it and how it authenticates."""
+    """A provider preset: where to reach it, how it authenticates, its default model."""
 
     base_url: str
     api_key_env: str | None  # None → keyless (a placeholder key is sent)
+    default_model: str  # used when LLMConfig.model is None
     base_url_env: str | None = None  # optional env var that overrides base_url
 
 
 PROVIDERS: dict[str, _Provider] = {
-    "edenai": _Provider("https://api.edenai.run/v3", "EDENAI_API_KEY"),
+    "edenai": _Provider(
+        "https://api.edenai.run/v3", "EDENAI_API_KEY", "openai/gpt-4o-mini"
+    ),
     "ollama": _Provider(
-        "http://localhost:11434/v1", None, base_url_env="OLLAMA_BASE_URL"
+        "http://localhost:11434/v1",
+        None,
+        "qwen2.5-coder:7b",
+        base_url_env="OLLAMA_BASE_URL",
     ),
 }
 
@@ -68,9 +74,9 @@ class LLM(Protocol):
 class LLMClient:
     """Calls an OpenAI-compatible chat API and returns a neutral ``LLMResponse``.
 
-    Construct via :func:`build_llm`, which resolves ``base_url`` and the key per
-    provider. ``client`` may be injected for testing; otherwise an ``openai.OpenAI``
-    is built against ``base_url``.
+    Construct via :func:`build_llm`, which resolves ``base_url``, the key, and the
+    model per provider. ``client`` may be injected for testing; otherwise an
+    ``openai.OpenAI`` is built against ``base_url``.
     """
 
     def __init__(
@@ -95,7 +101,7 @@ class LLMClient:
 
     @property
     def model(self) -> str:
-        return self._config.model
+        return self._config.model or ""
 
     @property
     def base_url(self) -> str | None:
@@ -125,7 +131,7 @@ class LLMClient:
         usage = getattr(resp, "usage", None)
         return LLMResponse(
             text=choice.message.content or "",
-            model=getattr(resp, "model", None) or self._config.model,
+            model=getattr(resp, "model", None) or self.model,
             finish_reason=choice.finish_reason or "",
             prompt_tokens=getattr(usage, "prompt_tokens", None),
             completion_tokens=getattr(usage, "completion_tokens", None),
@@ -135,9 +141,10 @@ class LLMClient:
 def build_llm(config: LLMConfig) -> LLM:
     """Construct the LLM client for ``config.provider`` — the single build path.
 
-    Resolves the base URL (config override > provider env override > preset default)
-    and the API key (from the provider's env var, or a placeholder for keyless
-    providers). Raises ``ValueError`` for an unknown provider or a missing required key.
+    Resolves the base URL (config override > provider env override > preset default),
+    the model (config model > preset default), and the API key (the provider's env var,
+    or a placeholder for keyless providers). Raises ``ValueError`` for an unknown
+    provider or a missing required key.
     """
     preset = PROVIDERS.get(config.provider)
     if preset is None:
@@ -149,6 +156,7 @@ def build_llm(config: LLMConfig) -> LLM:
         or (os.environ.get(preset.base_url_env) if preset.base_url_env else None)
         or preset.base_url
     )
+    model = config.model or preset.default_model
     if preset.api_key_env:
         api_key = os.environ.get(preset.api_key_env, "")
         if not api_key:
@@ -158,4 +166,30 @@ def build_llm(config: LLMConfig) -> LLM:
             )
     else:
         api_key = "ollama"  # placeholder; keyless providers ignore it
-    return LLMClient(config, base_url=base_url, api_key=api_key)
+    resolved = config.model_copy(update={"model": model})
+    return LLMClient(resolved, base_url=base_url, api_key=api_key)
+
+
+def resolve_llm_config(
+    block: dict[str, Any] | None,
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+) -> LLMConfig:
+    """Merge a config ``llm:`` block with CLI overrides into an :class:`LLMConfig`.
+
+    Overriding the provider replaces the provider-scoped fields (``model``,
+    ``base_url``): a model id is meaningless across providers, so switching providers
+    does not carry the old provider's model — the new provider's default applies (or an
+    explicit ``model``). This mirrors the config loader's impl-selector replacement so
+    the CLI and YAML behave the same way.
+    """
+    data: dict[str, Any] = dict(block or {})
+    if provider and provider != data.get("provider"):
+        data.pop("model", None)
+        data.pop("base_url", None)
+    if provider:
+        data["provider"] = provider
+    if model:
+        data["model"] = model
+    return LLMConfig(**data)

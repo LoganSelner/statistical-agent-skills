@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from statskills.agent.llm import LLMClient, LLMConfig, build_llm
+from statskills.agent.llm import LLMClient, LLMConfig, build_llm, resolve_llm_config
 from statskills.core.types import Message
 
 # --- fakes for the injected SDK client ------------------------------------------
@@ -136,3 +136,68 @@ def test_build_llm_base_url_precedence(monkeypatch: pytest.MonkeyPatch):
 def test_build_llm_unknown_provider_raises():
     with pytest.raises(ValueError, match="Unknown LLM provider"):
         build_llm(LLMConfig(provider="nope"))
+
+
+# --- provider default model + CLI override semantics ----------------------------
+
+
+def test_build_llm_resolves_provider_default_model(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    llm = build_llm(LLMConfig(provider="ollama"))  # model omitted
+    assert isinstance(llm, LLMClient)
+    assert llm.model == "qwen2.5-coder:7b"
+
+
+def test_build_llm_edenai_default_model(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("EDENAI_API_KEY", "k")
+    llm = build_llm(LLMConfig(provider="edenai"))
+    assert isinstance(llm, LLMClient)
+    assert llm.model == "openai/gpt-4o-mini"
+
+
+def test_resolve_llm_config_no_override_keeps_block():
+    lc = resolve_llm_config(
+        {"provider": "edenai", "model": "openai/gpt-4o", "temperature": 0.3}
+    )
+    assert lc.provider == "edenai"
+    assert lc.model == "openai/gpt-4o"
+    assert lc.temperature == 0.3
+
+
+def test_resolve_llm_config_provider_switch_drops_old_model():
+    # The documented footgun: `--provider ollama` over the EdenAI default config.
+    lc = resolve_llm_config(
+        {"provider": "edenai", "model": "openai/gpt-4o-mini", "temperature": 0.0},
+        provider="ollama",
+    )
+    assert lc.provider == "ollama"
+    assert lc.model is None  # old provider's model dropped → build_llm defaults it
+    assert lc.temperature == 0.0  # shared knob kept
+
+
+def test_resolve_llm_config_provider_switch_honors_explicit_model():
+    lc = resolve_llm_config(
+        {"provider": "edenai", "model": "openai/gpt-4o-mini"},
+        provider="ollama",
+        model="llama3.1:8b",
+    )
+    assert lc.provider == "ollama"
+    assert lc.model == "llama3.1:8b"
+
+
+def test_resolve_llm_config_model_only_override_same_provider():
+    lc = resolve_llm_config({"provider": "edenai", "model": "a"}, model="b")
+    assert lc.provider == "edenai"
+    assert lc.model == "b"
+
+
+def test_provider_switch_then_build_uses_ollama_default(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    # End-to-end: the documented `--provider ollama` path no longer sends the EdenAI id.
+    monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    lc = resolve_llm_config(
+        {"provider": "edenai", "model": "openai/gpt-4o-mini"}, provider="ollama"
+    )
+    llm = build_llm(lc)
+    assert llm.model == "qwen2.5-coder:7b"

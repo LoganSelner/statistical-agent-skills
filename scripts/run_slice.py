@@ -24,7 +24,7 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from statskills.agent.llm import LLMConfig, build_llm
+from statskills.agent.llm import build_llm, resolve_llm_config
 from statskills.agent.loop import ReActAgent
 from statskills.core.config import load_yaml_with_inheritance
 from statskills.core.provenance import RunProvenance
@@ -84,12 +84,9 @@ def main() -> int:
     load_dotenv(REPO_ROOT / ".env")
 
     cfg: dict[str, Any] = load_yaml_with_inheritance(args.config)
-    llm_cfg: dict[str, Any] = dict(cfg.get("llm") or {})
-    if args.provider:
-        llm_cfg["provider"] = args.provider
-    if args.model:
-        llm_cfg["model"] = args.model
-    llm_config = LLMConfig(**llm_cfg)
+    llm_config = resolve_llm_config(
+        cfg.get("llm"), provider=args.provider, model=args.model
+    )
     max_steps = args.max_steps or int(cfg.get("max_steps", 10))
     executor_kind = args.executor or str(cfg.get("executor", "docker"))
     image = str(cfg.get("sandbox_image", "statskills-sandbox:0.1.0"))
@@ -116,7 +113,7 @@ def main() -> int:
 
     print(
         f"\nRunning {len(tasks)} slice task(s) · provider={llm_config.provider} · "
-        f"model={llm_config.model} · executor={executor_kind}\n"
+        f"model={llm.model} · executor={executor_kind}\n"
     )
     records: list[dict[str, Any]] = []
     for task in tasks:
@@ -145,7 +142,7 @@ def main() -> int:
         "provenance": asdict(provenance),
         "config": {
             "provider": llm_config.provider,
-            "model": llm_config.model,
+            "model": llm.model,
             "base_url": getattr(llm, "base_url", None),
             "temperature": llm_config.temperature,
             "max_tokens": llm_config.max_tokens,
