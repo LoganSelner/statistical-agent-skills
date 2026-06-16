@@ -76,6 +76,29 @@ def test_changed_impl_selector_replaces_whole_subtree(tmp_path: Path) -> None:
     }
 
 
+def test_root_level_impl_selector_replaces_wholesale(tmp_path: Path) -> None:
+    # A config whose *root* is itself a component: switching the root selector
+    # must drop the parent implementation's private params, not inherit them.
+    _write(
+        tmp_path / "base.yaml",
+        """
+        provider: edenai
+        sub_provider: openai
+        """,
+    )
+    _write(
+        tmp_path / "child.yaml",
+        """
+        extends: base.yaml
+        provider: ollama
+        base_url: http://localhost:11434
+        """,
+    )
+    cfg = load_yaml_with_inheritance(tmp_path / "child.yaml")
+    assert cfg == {"provider": "ollama", "base_url": "http://localhost:11434"}
+    assert "sub_provider" not in cfg
+
+
 def test_multilevel_inheritance(tmp_path: Path) -> None:
     _write(tmp_path / "a.yaml", "x: 1\ny: 1\nz: 1\n")
     _write(tmp_path / "b.yaml", "extends: a.yaml\ny: 2\n")

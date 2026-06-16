@@ -35,20 +35,24 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     """Recursively merge *override* into *base*.
 
     Rules:
+    - Component dicts whose implementation selector (``type``/``provider``)
+      changes: full replacement (params are private to the implementation).
+      Checked at entry, so the rule holds at every level — the root pair as
+      well as each nested pair (the recursive call re-checks on entry).
     - Nested dicts: merge recursively (override only the specified keys).
     - Lists: full replacement (override provides the entire list).
     - Scalars: override replaces base.
-    - Component dicts whose implementation selector (``type``/``provider``)
-      changes: full replacement (params are private to the implementation).
     """
+    # Apply selector replacement to *this* (base, override) pair before any
+    # per-key merge, so a swapped implementation never inherits the previous
+    # implementation's private params — including when the root config is itself
+    # a component.
+    if _selects_different_impl(base, override):
+        return dict(override)
+
     merged = base.copy()
     for key, value in override.items():
-        if (
-            key in merged
-            and isinstance(merged[key], dict)
-            and isinstance(value, dict)
-            and not _selects_different_impl(merged[key], value)
-        ):
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
             merged[key] = _deep_merge(merged[key], value)
         else:
             merged[key] = value
