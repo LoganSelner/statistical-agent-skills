@@ -41,13 +41,17 @@ _DEFAULT_TOLERANCE = 1e-6
 
 
 def _extract_number(text: str) -> float | None:
-    """Best-effort: the whole string as a float, else the last number in it."""
+    """Best-effort: the whole string as a float, else the FIRST number in it.
+
+    The value leads the answer (the prompt is ``FINAL ANSWER: <value>``); explanatory
+    notes like ``(rounded to 2 decimals)`` follow and must not be graded instead of it.
+    """
     try:
         return float(text.strip())
     except ValueError:
         pass
     matches = _NUMBER.findall(text)
-    return float(matches[-1]) if matches else None  # answers usually end with the value
+    return float(matches[0]) if matches else None
 
 
 def _norm(value: object) -> str:

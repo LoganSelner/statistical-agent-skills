@@ -37,6 +37,23 @@ def test_numeric_no_number_fails():
     assert not _score("no number here", ExpectedAnswer(1.0, "numeric")).passed
 
 
+def test_numeric_ignores_trailing_explanatory_note():
+    # The value leads; a trailing "(rounded to N decimals)" must not be graded.
+    assert _score(
+        "16.00 (rounded to 2 decimals)", ExpectedAnswer(16.0, "numeric", tolerance=5e-3)
+    ).passed
+    assert _score(
+        "p=0.0039 rounded to 4 decimals",
+        ExpectedAnswer(0.0039, "numeric", tolerance=5e-5),
+    ).passed
+
+
+def test_numeric_discrete_count_rejects_non_integer():
+    # A near-zero tolerance must reject a non-integer count, not accept ~3.
+    assert _score("3", ExpectedAnswer(3, "numeric", tolerance=1e-9)).passed
+    assert not _score("2.6", ExpectedAnswer(3, "numeric", tolerance=1e-9)).passed
+
+
 def test_categorical_is_case_insensitive():
     assert _score("south", ExpectedAnswer("South", "categorical")).passed
     assert not _score("North", ExpectedAnswer("South", "categorical")).passed

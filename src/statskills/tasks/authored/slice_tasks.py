@@ -39,7 +39,7 @@ def load_slice_tasks(data_dir: Path = AUTHORED_DATA_DIR) -> list[Task]:
             id="slice-count",
             prompt="How many rows in sales.csv have region equal to 'North'?",
             datasets=(sales,),
-            expected=ExpectedAnswer(3, "numeric", tolerance=0.5),
+            expected=ExpectedAnswer(3, "numeric", tolerance=1e-9),  # discrete count
             concepts=("filtering",),
         ),
         Task(
