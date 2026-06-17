@@ -31,7 +31,7 @@ from statskills.core.provenance import RunProvenance
 from statskills.sandbox.base import Executor
 from statskills.sandbox.docker import DockerError, DockerExecutor
 from statskills.sandbox.local import LocalExecutor
-from statskills.tasks.authored.slice_tasks import load_slice_tasks
+from statskills.tasks.loader import load_tasks
 
 logger = logging.getLogger("statskills.slice")
 
@@ -104,16 +104,18 @@ def main() -> int:
         return 1
 
     agent = ReActAgent(llm, executor, max_steps=max_steps)
-    tasks = load_slice_tasks()
+    tasks_spec = dict(cfg.get("tasks") or {"set": "authored"})
+    tasks = load_tasks(tasks_spec)
 
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    out_dir = RESULTS_DIR / f"slice-{run_id}"
+    out_dir = RESULTS_DIR / f"run-{run_id}"
     out_dir.mkdir(parents=True, exist_ok=True)
     provenance = RunProvenance.capture()
 
     print(
-        f"\nRunning {len(tasks)} slice task(s) · provider={llm_config.provider} · "
-        f"model={llm.model} · executor={executor_kind}\n"
+        f"\nRunning {len(tasks)} {tasks_spec.get('set', 'authored')} task(s) · "
+        f"provider={llm_config.provider} · model={llm.model} · "
+        f"executor={executor_kind}\n"
     )
     records: list[dict[str, Any]] = []
     for task in tasks:
@@ -136,6 +138,7 @@ def main() -> int:
     meta = {
         "run_id": run_id,
         "provenance": asdict(provenance),
+        "task_set": tasks_spec,
         "config": {
             "provider": llm_config.provider,
             "model": llm.model,

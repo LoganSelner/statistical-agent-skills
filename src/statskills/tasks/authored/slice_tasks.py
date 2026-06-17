@@ -32,14 +32,16 @@ def load_slice_tasks(data_dir: Path = AUTHORED_DATA_DIR) -> list[Task]:
                 "Round to 2 decimals."
             ),
             datasets=(sales,),
-            expected=ExpectedAnswer(16.00, "numeric", tolerance=5e-3),
+            expected=ExpectedAnswer.single(16.00, "numeric", tolerance=5e-3),
             concepts=("descriptive",),
         ),
         Task(
             id="slice-count",
             prompt="How many rows in sales.csv have region equal to 'North'?",
             datasets=(sales,),
-            expected=ExpectedAnswer(3, "numeric", tolerance=1e-9),  # discrete count
+            expected=ExpectedAnswer.single(
+                3, "numeric", tolerance=1e-9
+            ),  # discrete count
             concepts=("filtering",),
         ),
         Task(
@@ -49,14 +51,14 @@ def load_slice_tasks(data_dir: Path = AUTHORED_DATA_DIR) -> list[Task]:
                 "'revenue' in sales.csv? Round to 3 decimals."
             ),
             datasets=(sales,),
-            expected=ExpectedAnswer(0.999, "numeric", tolerance=5e-4),
+            expected=ExpectedAnswer.single(0.999, "numeric", tolerance=5e-4),
             concepts=("correlation",),
         ),
         Task(
             id="slice-groupby",
             prompt="Which region has the highest total revenue in sales.csv?",
             datasets=(sales,),
-            expected=ExpectedAnswer("South", "categorical"),
+            expected=ExpectedAnswer.single("South", "categorical"),
             concepts=("aggregation",),
         ),
         Task(
@@ -66,7 +68,7 @@ def load_slice_tasks(data_dir: Path = AUTHORED_DATA_DIR) -> list[Task]:
                 "group B in groups.csv. Report the p-value rounded to 4 decimals."
             ),
             datasets=(groups,),
-            expected=ExpectedAnswer(0.0039, "numeric", tolerance=5e-5),
+            expected=ExpectedAnswer.single(0.0039, "numeric", tolerance=5e-5),
             concepts=("two_sample_test",),
         ),
     ]

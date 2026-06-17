@@ -1,9 +1,9 @@
 """Task schema — the data contracts for a data-analysis task and its answer.
 
 Aligns with ROADMAP §4: a task carries the prompt, the datasets to mount, an
-``ExpectedAnswer`` (the closed-form ground truth), and a ``verifier`` key naming the
-scorer. Scoring itself lives in :mod:`statskills.evaluation`, which depends on these
-types (never the reverse).
+``ExpectedAnswer`` (the closed-form ground truth — one or more named keys), and a
+``verifier`` key naming the scorer. Scoring lives in :mod:`statskills.evaluation`, which
+depends on these types (never the reverse).
 """
 
 from __future__ import annotations
@@ -29,20 +29,40 @@ class Dataset:
 
 
 @dataclass(frozen=True)
-class ExpectedAnswer:
-    """The closed-form ground truth for a task (ROADMAP §4).
+class AnswerKey:
+    """One expected sub-answer.
 
-    ``kind`` selects how the verifier compares a submission to ``value``:
-    ``"numeric"`` (parse a number, compare within ``tolerance``), ``"exact"`` /
-    ``"categorical"`` (string match; ``categorical`` is case-insensitive), ``"set"``
-    (compare as an unordered set), or ``"regex"`` (``value`` is a pattern the answer
-    must match). ``format_spec`` records any required output format from the task.
+    ``kind`` selects the comparison: ``numeric`` (within ``tolerance``), ``exact`` or
+    ``categorical`` string (the latter case-insensitive), ``set``, or ``regex``.
+
+    ``name`` is empty for a single answer (the whole submission is compared), or the
+    ``@name`` label of a benchmark's ``@name[value]`` multi-part answer.
     """
 
     value: object
     kind: str
     tolerance: float | None = None
+    name: str = ""
+
+
+@dataclass(frozen=True)
+class ExpectedAnswer:
+    """The closed-form ground truth: one or more ``AnswerKey`` parts (ROADMAP §4)."""
+
+    keys: tuple[AnswerKey, ...]
     format_spec: str | None = None
+
+    @classmethod
+    def single(
+        cls,
+        value: object,
+        kind: str,
+        *,
+        tolerance: float | None = None,
+        format_spec: str | None = None,
+    ) -> ExpectedAnswer:
+        """A one-part expected answer (the whole submission is compared)."""
+        return cls((AnswerKey(value, kind, tolerance),), format_spec=format_spec)
 
 
 @dataclass(frozen=True)

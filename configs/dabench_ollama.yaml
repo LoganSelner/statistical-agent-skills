@@ -1,0 +1,7 @@
+# Local DABench run via Ollama. Fetch the data first:  make dabench-data
+# Scale up to the full dev split by raising/removing `limit`.
+extends: slice_ollama.yaml
+tasks:
+  set: dabench
+  limit: 20
+  seed: 0

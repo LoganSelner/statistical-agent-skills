@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Grade a saved slice run — score trajectories against the authored tasks.
+"""Grade a saved run — score trajectories against its task set.
 
-Reads ``<run_dir>/trajectories.jsonl``, scores each trajectory against its task's
-expected answer (no agent re-run; ROADMAP §3), writes ``<run_dir>/scores.jsonl``, and
-prints a pass rate + efficiency summary.
+Reads ``<run_dir>/trajectories.jsonl``, reconstructs the run's task set from the
+``task_set`` in ``run.json``, scores each trajectory against its task's expected answer
+(no agent re-run; ROADMAP §3), writes ``<run_dir>/scores.jsonl``, and prints a pass rate
++ efficiency summary.
 
 Usage:
-    python scripts/grade.py results/slice-20260616T153053Z
+    python scripts/grade.py results/run-20260616T153053Z
 """
 
 from __future__ import annotations
@@ -20,12 +21,12 @@ import sys
 import statskills.evaluation  # noqa: F401 - registers the built-in verifiers
 from statskills.evaluation.grading import grade
 from statskills.evaluation.metrics import aggregate
-from statskills.tasks.authored.slice_tasks import load_slice_tasks
+from statskills.tasks.loader import load_tasks
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Grade a saved slice run.")
-    parser.add_argument("run_dir", type=Path, help="A results/slice-* directory.")
+    parser = argparse.ArgumentParser(description="Grade a saved run.")
+    parser.add_argument("run_dir", type=Path, help="A results/run-* directory.")
     args = parser.parse_args()
 
     traj_path = args.run_dir / "trajectories.jsonl"
@@ -36,7 +37,13 @@ def main() -> int:
         json.loads(line) for line in traj_path.read_text().splitlines() if line.strip()
     ]
 
-    tasks_by_id = {t.id: t for t in load_slice_tasks()}
+    run_meta_path = args.run_dir / "run.json"
+    task_set = (
+        json.loads(run_meta_path.read_text()).get("task_set")
+        if run_meta_path.exists()
+        else None
+    )
+    tasks_by_id = {t.id: t for t in load_tasks(task_set)}
     records = grade(trajectories, tasks_by_id)
 
     (args.run_dir / "scores.jsonl").write_text(

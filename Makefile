@@ -7,8 +7,8 @@ SHELL := /bin/bash
 UV ?= uv
 
 # --- Phony ---
-.PHONY: help bootstrap update env sandbox-image slice grade test test-all \
-	fmt fmt-check lint typecheck qa precommit clean deep-clean
+.PHONY: help bootstrap update env sandbox-image slice dabench-data dabench grade \
+	test test-all fmt fmt-check lint typecheck qa precommit clean deep-clean
 
 help: ## Show available targets
 	@awk '\
@@ -43,10 +43,16 @@ sandbox-image: ## Build the pinned sandbox execution image (statskills-sandbox:0
 	docker build -f src/statskills/sandbox/Dockerfile \
 		-t statskills-sandbox:0.1.0 src/statskills/sandbox
 
-slice: ## Run the Phase 1 vertical slice (needs EDENAI_API_KEY; Docker sandbox)
+slice: ## Run the authored vertical slice (needs EDENAI_API_KEY; Docker sandbox)
 	$(UV) run python scripts/run_slice.py
 
-grade: ## Grade a saved run (RUN=results/slice-...)
+dabench-data: ## Download the InfiAgent-DABench dev set into data/benchmarks/dabench/
+	$(UV) run python scripts/fetch_dabench.py
+
+dabench: ## Run the DABench subset via Ollama (run `make dabench-data` first)
+	$(UV) run python scripts/run_slice.py --config configs/dabench_ollama.yaml
+
+grade: ## Grade a saved run (RUN=results/run-...)
 	$(UV) run python scripts/grade.py $(RUN)
 
 # ---------- Code quality ----------

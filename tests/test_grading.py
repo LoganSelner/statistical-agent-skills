@@ -13,7 +13,7 @@ def _task(task_id: str, expected: ExpectedAnswer) -> Task:
 
 
 def test_grade_trajectory_scores_and_carries_efficiency():
-    task = _task("m", ExpectedAnswer(16.0, "numeric", tolerance=5e-3))
+    task = _task("m", ExpectedAnswer.single(16.0, "numeric", tolerance=5e-3))
     traj = {
         "task_id": "m",
         "final_answer": "16.00",
@@ -29,7 +29,7 @@ def test_grade_trajectory_scores_and_carries_efficiency():
 
 
 def test_grade_skips_unknown_task_and_fails_errors():
-    tasks = {"a": _task("a", ExpectedAnswer(1.0, "numeric", tolerance=0.5))}
+    tasks = {"a": _task("a", ExpectedAnswer.single(1.0, "numeric", tolerance=0.5))}
     trajectories: list[dict[str, Any]] = [
         {"task_id": "a", "final_answer": "1", "steps": [], "stop_reason": "final"},
         {"task_id": "unknown", "final_answer": "x"},  # no task → skipped
