@@ -19,10 +19,19 @@ def initial_messages(
     filenames: tuple[str, ...],
     *,
     system_prompt: str = SYSTEM_PROMPT,
+    skill_payload: str | None = None,
 ) -> list[Message]:
-    """The opening system + task messages."""
+    """The opening system + task messages.
+
+    A non-empty ``skill_payload`` (rendered by the skills layer) is appended to the
+    system message as a delimited section, keeping it inspectable; ``None`` leaves the
+    system message identical to the no-skills baseline.
+    """
+    system = system_prompt
+    if skill_payload:
+        system = f"{system_prompt}\n\n# Available skills\n\n{skill_payload}"
     return [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": system},
         {"role": "user", "content": build_task_prompt(task_prompt, filenames)},
     ]
 

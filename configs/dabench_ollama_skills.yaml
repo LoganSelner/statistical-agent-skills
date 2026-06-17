@@ -1,0 +1,9 @@
+# Local DABench run via Ollama WITH curated skills (the Phase 3b experiment arm).
+# Pair with dabench_ollama.yaml (skills off) to compare curated vs off on the same tasks.
+# Note: the `statistics` library is authored in Phase 3b; until then it is empty (no-op).
+extends: dabench_ollama.yaml
+skills:
+  mode: curated         # off | curated
+  resolution: L1        # L0 | L1 | L2 | L3
+  router: forced        # forced (Phase 3a); description_match | model_choice later
+  library: statistics   # dir under src/statskills/skills/library/, or a path

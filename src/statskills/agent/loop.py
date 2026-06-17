@@ -45,10 +45,13 @@ class ReActAgent:
         self._max_steps = max_steps
         self._system_prompt = system_prompt
 
-    def run(self, task: Task) -> Trajectory:
+    def run(self, task: Task, *, skill_payload: str | None = None) -> Trajectory:
         filenames = tuple(d.name for d in task.datasets)
         messages: list[Message] = initial_messages(
-            task.prompt, filenames, system_prompt=self._system_prompt
+            task.prompt,
+            filenames,
+            system_prompt=self._system_prompt,
+            skill_payload=skill_payload,
         )
         steps: list[AgentStep] = []
         last_observation: dict[str, str] = {}

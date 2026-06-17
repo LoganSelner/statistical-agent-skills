@@ -31,6 +31,7 @@ from statskills.core.provenance import RunProvenance
 from statskills.sandbox.base import Executor
 from statskills.sandbox.docker import DockerError, DockerExecutor
 from statskills.sandbox.local import LocalExecutor
+from statskills.skills import build_skill_context
 from statskills.tasks.loader import load_tasks
 
 logger = logging.getLogger("statskills.slice")
@@ -106,6 +107,8 @@ def main() -> int:
     agent = ReActAgent(llm, executor, max_steps=max_steps)
     tasks_spec = dict(cfg.get("tasks") or {"set": "authored"})
     tasks = load_tasks(tasks_spec)
+    skill_ctx = build_skill_context(cfg.get("skills"))
+    skills_mode = "off" if skill_ctx is None else "curated"
 
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out_dir = RESULTS_DIR / f"run-{run_id}"
@@ -115,18 +118,24 @@ def main() -> int:
     print(
         f"\nRunning {len(tasks)} {tasks_spec.get('set', 'authored')} task(s) · "
         f"provider={llm_config.provider} · model={llm.model} · "
-        f"executor={executor_kind}\n"
+        f"executor={executor_kind} · skills={skills_mode}\n"
     )
     records: list[dict[str, Any]] = []
     for task in tasks:
+        selection = skill_ctx.resolve(task) if skill_ctx else None
         try:
-            traj = agent.run(task)
+            traj = agent.run(
+                task, skill_payload=selection.payload if selection else None
+            )
         except Exception as e:
             logger.exception("Task %s failed", task.id)
             records.append({"task_id": task.id, "error": str(e)})
             print(f"  {task.id:18} ERROR: {e}")
             continue
-        records.append(traj.to_dict())
+        record = traj.to_dict()
+        if selection is not None:
+            record["skills"] = list(selection.names)
+        records.append(record)
         print(
             f"  {task.id:18} answer={traj.final_answer!r}  "
             f"[{traj.stop_reason}, {len(traj.steps)} steps]"
@@ -135,10 +144,20 @@ def main() -> int:
     (out_dir / "trajectories.jsonl").write_text(
         "".join(json.dumps(r) + "\n" for r in records)
     )
+    skills_block = cfg.get("skills") or {}
+    skills_meta: dict[str, Any] = {"mode": skills_mode}
+    if skill_ctx is not None:
+        skills_meta.update(
+            resolution=skill_ctx.level.name,
+            router=str(skills_block.get("router", "forced")),
+            library=str(skills_block.get("library", "statistics")),
+            skills=list(skill_ctx.library.names),
+        )
     meta = {
         "run_id": run_id,
         "provenance": asdict(provenance),
         "task_set": tasks_spec,
+        "skills": skills_meta,
         "config": {
             "provider": llm_config.provider,
             "model": llm.model,

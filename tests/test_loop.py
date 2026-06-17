@@ -126,3 +126,21 @@ def test_trajectory_to_dict_is_json_serializable():
     task = Task(id="t4", prompt="x")
     traj = ReActAgent(FakeLLM(["FINAL ANSWER: ok"]), LocalExecutor()).run(task)
     json.dumps(traj.to_dict())  # must not raise
+
+
+def test_skill_payload_is_injected_into_system_message():
+    task = Task(id="t8", prompt="x")
+    llm = FakeLLM(["FINAL ANSWER: ok"])
+    ReActAgent(llm, LocalExecutor()).run(task, skill_payload="SKILL-BODY-XYZ")
+    system = llm.seen[0][0]
+    assert system["role"] == "system"
+    assert "# Available skills" in system["content"]
+    assert "SKILL-BODY-XYZ" in system["content"]
+
+
+def test_no_skill_payload_leaves_system_prompt_unchanged():
+    from statskills.agent.prompts import SYSTEM_PROMPT
+
+    llm = FakeLLM(["FINAL ANSWER: ok"])
+    ReActAgent(llm, LocalExecutor()).run(Task(id="t9", prompt="x"))
+    assert llm.seen[0][0]["content"] == SYSTEM_PROMPT
