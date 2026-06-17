@@ -12,9 +12,10 @@ its uncertainty too.
 - Categorical association -> odds ratio, risk ratio, or Cramer's V.
 
 Always give a confidence interval (95% by default) for the estimate. For a difference in
-means use the t-based interval (estimate +/- t_crit * SE) or a bootstrap. If the interval
-excludes the null value (0 for a difference, 1 for a ratio), that is consistent with a
-significant test.
+means, prefer scipy's Welch interval — it uses the correct (Satterthwaite) degrees of
+freedom — over a hand-rolled estimate +/- t_crit * SE; a bootstrap also works. If the
+interval excludes the null value (0 for a difference, 1 for a ratio), that is consistent
+with a significant test.
 
 Report the estimate, its CI, and the effect size — then interpret the size, not only the
 significance.
@@ -32,8 +33,8 @@ pooled_sd = np.sqrt(
 )
 d = (np.mean(a) - np.mean(b)) / pooled_sd
 
-# 95% CI for a difference in means
-diff = np.mean(a) - np.mean(b)
-se = np.sqrt(np.var(a, ddof=1) / n1 + np.var(b, ddof=1) / n2)
-lo, hi = stats.t.interval(0.95, df=min(n1, n2) - 1, loc=diff, scale=se)
+# 95% CI for the difference in means, mean(a) - mean(b)
+# (Welch; scipy uses the correct Satterthwaite degrees of freedom)
+ci = stats.ttest_ind(a, b, equal_var=False).confidence_interval(confidence_level=0.95)
+lo, hi = ci.low, ci.high
 ```
