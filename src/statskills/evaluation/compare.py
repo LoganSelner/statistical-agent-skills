@@ -69,14 +69,22 @@ class TrialComparison:
 def compare_trials(
     baseline: Sequence[ScoreRecord], treatment: Sequence[ScoreRecord]
 ) -> TrialComparison:
-    """Compare two N-trial runs: per-task frequency deltas + a bootstrapped delta CI."""
-    base, treat = summarize_trials(baseline), summarize_trials(treatment)
-    common = sorted(set(base.per_task_pass_freq) & set(treat.per_task_pass_freq))
+    """Compare two N-trial runs over the tasks they share.
+
+    Per-task frequency deltas plus a bootstrapped pass-rate delta CI. Restricting both
+    sides to the shared tasks first keeps the headline delta honest when coverage
+    differs (e.g. an interrupted run with fewer tasks), matching ``compare_runs``.
+    """
+    common = {r.task_id for r in baseline} & {r.task_id for r in treatment}
+    base_records = [r for r in baseline if r.task_id in common]
+    treat_records = [r for r in treatment if r.task_id in common]
+    base, treat = summarize_trials(base_records), summarize_trials(treat_records)
     return TrialComparison(
         baseline=base,
         treatment=treat,
-        pass_rate_delta=delta_pass_rate_ci(baseline, treatment),
+        pass_rate_delta=delta_pass_rate_ci(base_records, treat_records),
         per_task_freq_delta={
-            t: treat.per_task_pass_freq[t] - base.per_task_pass_freq[t] for t in common
+            t: treat.per_task_pass_freq[t] - base.per_task_pass_freq[t]
+            for t in sorted(common)
         },
     )

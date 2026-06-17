@@ -62,7 +62,10 @@ def _print_trials(
     base, treat = comparison.baseline, comparison.treatment
     print(f"\nbaseline : {base_label}")
     print(f"treatment: {treat_label}")
-    print(f"\n{base.n_trials} vs {treat.n_trials} trials · per-task pass frequency\n")
+    print(
+        f"\n{base.n_trials} vs {treat.n_trials} trials · "
+        f"{base.n_tasks} shared task(s) · per-task pass frequency\n"
+    )
     print(f"  {'task':<26}{'baseline':>9}{'treatment':>11}{'delta':>9}")
     for task_id, delta in comparison.per_task_freq_delta.items():
         bf = base.per_task_pass_freq.get(task_id, 0.0)

@@ -53,3 +53,14 @@ def test_compare_trials_per_task_freq_and_delta():
     assert cmp.per_task_freq_delta["welch"] == pytest.approx(0.5)  # 0.5 - 0.0
     assert cmp.pass_rate_delta.point == pytest.approx(0.5)
     assert cmp.baseline.n_trials == 4 and cmp.treatment.n_trials == 4
+
+
+def test_compare_trials_restricts_to_common_tasks():
+    # baseline ran an extra failing task the treatment never did (e.g. an interrupted
+    # run): the headline delta must reflect only the shared task, not the coverage gap.
+    baseline = _trial_recs("a", [True, True]) + _trial_recs("extra", [False, False])
+    treatment = _trial_recs("a", [True, True])
+    cmp = compare_trials(baseline, treatment)
+    assert set(cmp.per_task_freq_delta) == {"a"}
+    assert cmp.baseline.n_tasks == 1  # summaries restricted to the shared task
+    assert cmp.pass_rate_delta.point == pytest.approx(0.0)  # not +0.5
