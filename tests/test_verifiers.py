@@ -56,6 +56,23 @@ def test_categorical_is_case_insensitive():
     assert not _score("North", ExpectedAnswer.single("South", "categorical")).passed
 
 
+def test_categorical_accepts_leading_answer_with_justification():
+    # models routinely answer "No, because ..." rather than a bare "No"
+    assert _score(
+        "No, because the Welch p-value is 0.16.",
+        ExpectedAnswer.single("No", "categorical"),
+    ).passed
+    assert _score(
+        "Yes\n\nThe difference is significant.",
+        ExpectedAnswer.single("Yes", "categorical"),
+    ).passed
+
+
+def test_categorical_word_boundary_blocks_substring():
+    v = _score("Not significant", ExpectedAnswer.single("No", "categorical"))
+    assert not v.passed
+
+
 def test_exact_is_case_sensitive():
     assert _score("South", ExpectedAnswer.single("South", "exact")).passed
     assert not _score("south", ExpectedAnswer.single("South", "exact")).passed

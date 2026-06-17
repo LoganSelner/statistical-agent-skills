@@ -82,7 +82,16 @@ def _exact(submitted: str, key: AnswerKey) -> tuple[bool, str]:
 
 
 def _categorical(submitted: str, key: AnswerKey) -> tuple[bool, str]:
-    ok = _norm(submitted).casefold() == _norm(key.value).casefold()
+    """Case-insensitive match, lenient to a trailing justification.
+
+    The whole submission must equal the category, or *lead* with it as a word — models
+    routinely answer ``No, because p > 0.05`` rather than a bare ``No``, and that is the
+    right answer. The word boundary keeps ``No`` from matching ``Not significant``.
+    """
+    submitted_norm, want = _norm(submitted).casefold(), _norm(key.value).casefold()
+    ok = submitted_norm == want or (
+        want != "" and re.match(rf"{re.escape(want)}\b", submitted_norm) is not None
+    )
     return ok, f"{submitted!r} vs {key.value!r}"
 
 
