@@ -39,7 +39,7 @@ def test_loader_dispatches_authored_trap():
         "trap-welch",
         "trap-paired",
         "trap-multiple-comparisons",
-        "trap-chi2",
+        "trap-mwu",
     }
 
 
@@ -82,14 +82,15 @@ def test_trap_multiple_comparisons_correction_matters():
     assert correct == _expected(task) and naive != _expected(task)
 
 
-def test_trap_chi2_fisher_right_chisquare_wrong():
-    task = _by_id()["trap-chi2"]
+def test_trap_mwu_right_ttest_wrong():
+    task = _by_id()["trap-mwu"]
     df = _df(task)
-    table = pd.crosstab(df.treatment, df.outcome)
-    correct = "Yes" if stats.fisher_exact(table).pvalue < 0.05 else "No"
-    naive = (
-        "Yes" if stats.chi2_contingency(table, correction=False).pvalue < 0.05 else "No"
-    )
-    assert correct == _expected(task) and naive != _expected(task)
-    # the small expected counts are what make Fisher the appropriate test
-    assert stats.chi2_contingency(table).expected_freq.min() < 5
+    a, b = df.value[df.group == "A"], df.value[df.group == "B"]
+    correct = "Yes" if stats.mannwhitneyu(a, b).pvalue < 0.05 else "No"
+    # both t-tests (pooled and Welch) miss it, so the trap isn't escapable via Welch
+    naive = "Yes" if stats.ttest_ind(a, b).pvalue < 0.05 else "No"
+    welch = "Yes" if stats.ttest_ind(a, b, equal_var=False).pvalue < 0.05 else "No"
+    assert correct == _expected(task)
+    assert naive != _expected(task) and welch != _expected(task)
+    # the data is non-normal, which is what makes the rank test the right choice
+    assert stats.shapiro(b).pvalue < 0.05

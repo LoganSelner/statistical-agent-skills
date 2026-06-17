@@ -80,17 +80,16 @@ def load_trap_tasks(data_dir: Path = AUTHORED_DATA_DIR) -> list[Task]:
             source="authored_trap",
         ),
         Task(
-            id="trap-chi2",
+            id="trap-mwu",
             prompt=(
-                "The file trap_chi2.csv has columns 'treatment' (X or Y) and "
-                "'outcome' (success or fail). Is there a statistically significant "
-                "association between treatment and outcome at the 0.05 level? "
-                "Answer Yes or No."
+                "The file trap_mwu.csv has columns 'group' (A or B) and 'value'. "
+                "Is there a statistically significant difference in 'value' between "
+                "group A and group B at the 0.05 significance level? Answer Yes or No."
             ),
-            datasets=(ds("trap_chi2.csv"),),
-            # Small expected counts: chi-square says Yes; Fisher exact says No.
-            expected=ExpectedAnswer.single("No", "categorical"),
-            concepts=("association", "categorical"),
+            datasets=(ds("trap_mwu.csv"),),
+            # Heavy tails: the t-test says No (p=.89); Mann-Whitney says Yes (p=.001).
+            expected=ExpectedAnswer.single("Yes", "categorical"),
+            concepts=("two_sample_test", "normality"),
             source="authored_trap",
         ),
     ]

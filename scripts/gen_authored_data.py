@@ -109,31 +109,34 @@ def multiple_comparisons() -> tuple[str, str]:
     )
 
 
-def chi2_fisher() -> tuple[str, str]:
-    """Small expected counts: chi-square's approximation over-rejects vs Fisher."""
-    table = np.array([[9, 2], [4, 7]])  # 2x2; an expected cell < 5
-    rows = [
-        {"treatment": t, "outcome": o}
-        for i, t in enumerate(["X", "Y"])
-        for j, o in enumerate(["success", "fail"])
-        for _ in range(int(table[i, j]))
-    ]
-    df = pd.DataFrame(rows).sample(frac=1.0, random_state=0).reset_index(drop=True)
-    _write(df, "trap_chi2.csv")
-    ct = pd.crosstab(df.treatment, df.outcome)
-    chi2 = stats.chi2_contingency(ct, correction=False)
-    p_fisher = stats.fisher_exact(ct).pvalue
+def mann_whitney() -> tuple[str, str]:
+    """Heavy-tailed (contaminated) data: the t-test's inflated variance misses a real
+    location shift that the rank-based Mann-Whitney test detects."""
+    rng = np.random.default_rng(1)
+
+    def group(mu: float) -> np.ndarray:
+        main = rng.normal(mu, 1.0, 28)
+        heavy = rng.normal(mu, 8.0, 6)  # symmetric contamination -> heavy tails
+        return np.round(np.concatenate([main, heavy]), 3)
+
+    a, b = group(0.0), group(1.2)
+    df = pd.DataFrame(
+        {"group": ["A"] * 34 + ["B"] * 34, "value": np.concatenate([a, b])}
+    )
+    _write(df, "trap_mwu.csv")
+    p_t = stats.ttest_ind(a, b).pvalue
+    p_mwu = stats.mannwhitneyu(a, b, alternative="two-sided").pvalue
+    naive = "Yes" if p_t < 0.05 else "No"
+    correct = "Yes" if p_mwu < 0.05 else "No"
     return (
-        f"chi-square p = {chi2.pvalue:.4f} -> {'Yes' if chi2.pvalue < 0.05 else 'No'}"
-        f"  (min expected {chi2.expected_freq.min():.1f})",
-        f"Fisher exact p = {p_fisher:.4f} -> "
-        f"ground truth {'Yes' if p_fisher < 0.05 else 'No'}",
+        f"t-test p = {p_t:.4f} -> {naive}",
+        f"Mann-Whitney p = {p_mwu:.4f} -> ground truth {correct}",
     )
 
 
 def main() -> int:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    for fn in (correlation, welch, paired, multiple_comparisons, chi2_fisher):
+    for fn in (correlation, welch, paired, multiple_comparisons, mann_whitney):
         naive, correct = fn()
         print(f"\n[{fn.__name__}]")
         print(f"    naive   : {naive}")
