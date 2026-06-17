@@ -1,0 +1,8 @@
+# Authored TRAP arm via Ollama, skills CURATED (the treatment of the curated-vs-off pair).
+# Pair with trap_ollama.yaml (skills off) on the same tasks/model, then `make compare`.
+extends: trap_ollama.yaml
+skills:
+  mode: curated
+  resolution: L1
+  router: forced
+  library: statistics
