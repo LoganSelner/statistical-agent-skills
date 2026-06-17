@@ -68,9 +68,12 @@ def test_categorical_accepts_leading_answer_with_justification():
     ).passed
 
 
-def test_categorical_word_boundary_blocks_substring():
-    v = _score("Not significant", ExpectedAnswer.single("No", "categorical"))
-    assert not v.passed
+def test_categorical_rejects_ambiguous_or_unrelated_lead():
+    # only a real delimiter qualifies (not any word boundary), protecting short labels
+    assert not _score("Yes/No", ExpectedAnswer.single("Yes", "categorical")).passed
+    assert not _score("A result", ExpectedAnswer.single("A", "categorical")).passed
+    no = ExpectedAnswer.single("No", "categorical")
+    assert not _score("Not significant", no).passed
 
 
 def test_exact_is_case_sensitive():
