@@ -58,7 +58,8 @@ def main() -> int:
     metrics = aggregate(records)
     passed = sum(r.passed for r in records)
     print(
-        f"\npass rate: {metrics.pass_rate:.0%} ({passed}/{metrics.n})"
+        f"\nABQ pass rate: {metrics.pass_rate:.0%} ({passed}/{metrics.n})"
+        f"  ·  PASQ: {metrics.mean_score:.0%}"
         f"  ·  mean steps: {metrics.mean_steps:.1f}"
         f"  ·  mean tokens: {metrics.mean_prompt_tokens:.0f}p"
         f"/{metrics.mean_completion_tokens:.0f}c\n"
