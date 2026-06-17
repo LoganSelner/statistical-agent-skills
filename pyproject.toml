@@ -84,6 +84,12 @@ warn_unreachable = false
 module = ["IPython.*"]
 ignore_missing_imports = true
 
+# The scientific stack ships incomplete or no type stubs; it is used only in tests and
+# scripts (the agent runs it inside the sandbox, not the harness).
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*", "scipy", "scipy.*", "statsmodels", "statsmodels.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-q -ra --strict-markers"
 testpaths = ["tests"]

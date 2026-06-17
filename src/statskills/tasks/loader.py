@@ -13,6 +13,7 @@ from typing import Any
 
 from statskills.tasks.adapters.dabench import load_dabench_tasks
 from statskills.tasks.authored.slice_tasks import load_slice_tasks
+from statskills.tasks.authored.trap_tasks import load_trap_tasks
 from statskills.tasks.schema import Task
 
 
@@ -22,13 +23,17 @@ def load_tasks(spec: Mapping[str, Any] | None) -> list[Task]:
     name = str(spec.get("set", "authored"))
     if name == "authored":
         return load_slice_tasks()
+    if name == "authored_trap":
+        return load_trap_tasks()
     if name == "dabench":
         tasks = load_dabench_tasks()
         limit = spec.get("limit")
         if limit is not None:
             tasks = _sample(tasks, int(limit), int(spec.get("seed", 0)))
         return tasks
-    raise ValueError(f"Unknown task set {name!r}. Known: authored, dabench.")
+    raise ValueError(
+        f"Unknown task set {name!r}. Known: authored, authored_trap, dabench."
+    )
 
 
 def _sample(tasks: list[Task], limit: int, seed: int) -> list[Task]:

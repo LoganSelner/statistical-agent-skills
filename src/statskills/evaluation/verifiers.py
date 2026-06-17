@@ -82,8 +82,22 @@ def _exact(submitted: str, key: AnswerKey) -> tuple[bool, str]:
 
 
 def _categorical(submitted: str, key: AnswerKey) -> tuple[bool, str]:
-    ok = _norm(submitted).casefold() == _norm(key.value).casefold()
-    return ok, f"{submitted!r} vs {key.value!r}"
+    """Case-insensitive match, lenient only to a trailing *justification*.
+
+    Passes if the whole submission equals the category, or leads with it followed by a
+    clause delimiter — comma, period, colon, semicolon, dash, paren, or newline — so
+    ``No, because p > 0.16`` scores as ``No``. A plain space or slash does not qualify,
+    so a short label is not falsely matched by ``A result`` or ``Yes/No`` (DABench runs
+    every non-numeric label through here), nor ``No`` by ``Not significant``.
+    """
+    want = _norm(key.value).casefold()
+    detail = f"{submitted!r} vs {key.value!r}"
+    if _norm(submitted).casefold() == want:
+        return True, detail
+    if want == "":
+        return False, detail
+    pattern = re.escape(want) + r"[ \t]*[,.;:!?()\n-]"
+    return re.match(pattern, submitted.strip().casefold()) is not None, detail
 
 
 def _set(submitted: str, key: AnswerKey) -> tuple[bool, str]:

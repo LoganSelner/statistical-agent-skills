@@ -1,0 +1,11 @@
+# Authored TRAP arm via Ollama, skills OFF (the baseline of the curated-vs-off pair).
+# Generate the data first:  python scripts/gen_authored_data.py
+# Model: qwen3-coder:30b — a strong agentic coder, so the agent can actually exploit the
+# skills (see ROADMAP Phase 4). Pull it on the Ollama host first.
+extends: slice.yaml
+llm:
+  provider: ollama
+  model: qwen3-coder:30b
+max_steps: 12
+tasks:
+  set: authored_trap
