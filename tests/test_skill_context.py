@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from statskills.skills import build_skill_context
+from statskills.skills.context import _LIBRARY_ROOT, _resolve_library
 from statskills.skills.schema import SkillResolution
 from statskills.tasks.schema import Task
 
@@ -41,6 +42,19 @@ def test_curated_builds_context_and_payload():
 def test_unknown_mode_raises():
     with pytest.raises(ValueError, match="Unknown skills mode"):
         build_skill_context({"mode": "bogus"})
+
+
+def test_bare_library_name_resolves_to_bundled_ignoring_cwd(tmp_path, monkeypatch):
+    # A bare name must be the bundled library even if a same-named dir sits in the CWD,
+    # so the same config always loads the same skills (reproducibility).
+    (tmp_path / "statistics").mkdir()
+    monkeypatch.chdir(tmp_path)
+    assert _resolve_library("statistics") == _LIBRARY_ROOT / "statistics"
+
+
+def test_explicit_path_library_is_used_as_given():
+    assert _resolve_library(str(FIXTURES)) == FIXTURES  # absolute path
+    assert _resolve_library("a/b/skills") == Path("a/b/skills")  # has a separator
 
 
 def test_resolution_parse_accepts_variants():

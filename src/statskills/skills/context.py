@@ -62,6 +62,14 @@ def build_skill_context(cfg: Mapping[str, Any] | None) -> SkillContext | None:
 
 
 def _resolve_library(value: str) -> Path:
-    """A bare name resolves under the bundled ``library/`` dir; a path is used as-is."""
-    path = Path(value)
-    return path if path.is_absolute() or path.exists() else _LIBRARY_ROOT / value
+    """Resolve the ``library`` config value to a directory.
+
+    A bare name (no path separator) is a bundled library under ``library/``, resolved
+    independently of the process CWD so the same config always loads the same skills
+    (reproducibility, §9) — never a same-named directory that happens to sit in the CWD.
+    A value with a separator (or an absolute path) is used as a filesystem path; a
+    relative path is relative to the CWD.
+    """
+    if "/" in value or Path(value).is_absolute():
+        return Path(value)
+    return _LIBRARY_ROOT / value
