@@ -8,7 +8,7 @@ UV ?= uv
 
 # --- Phony ---
 .PHONY: help bootstrap update env sandbox-image slice dabench-data dabench grade \
-	test test-all fmt fmt-check lint typecheck qa precommit clean deep-clean
+	compare test test-all fmt fmt-check lint typecheck qa precommit clean deep-clean
 
 help: ## Show available targets
 	@awk '\
@@ -54,6 +54,9 @@ dabench: ## Run the DABench subset via Ollama (run `make dabench-data` first)
 
 grade: ## Grade a saved run (RUN=results/run-...)
 	$(UV) run python scripts/grade.py $(RUN)
+
+compare: ## Compare two graded runs (A=results/run-off B=results/run-curated)
+	$(UV) run python scripts/compare.py $(A) $(B)
 
 # ---------- Code quality ----------
 test: ## Run fast tests (skip slow)
