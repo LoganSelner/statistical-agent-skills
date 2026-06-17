@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from statskills.evaluation.compare import compare_runs
+from statskills.evaluation.compare import compare_runs, compare_trials
 from statskills.evaluation.results import ScoreRecord
 
 
@@ -37,3 +37,19 @@ def test_compare_pasq_delta_tracks_partial_credit():
     cmp = compare_runs(baseline, treatment)
     assert cmp.pass_rate_delta == pytest.approx(0.0)
     assert cmp.mean_score_delta == pytest.approx(0.5)
+
+
+def _trial_recs(task_id: str, outcomes: list[bool]) -> list[ScoreRecord]:
+    return [
+        ScoreRecord(task_id, o, float(o), "x", "", "final", 2, 10, 5, trial=i)
+        for i, o in enumerate(outcomes)
+    ]
+
+
+def test_compare_trials_per_task_freq_and_delta():
+    off = _trial_recs("welch", [False, False, False, False])
+    curated = _trial_recs("welch", [True, False, True, False])
+    cmp = compare_trials(off, curated)
+    assert cmp.per_task_freq_delta["welch"] == pytest.approx(0.5)  # 0.5 - 0.0
+    assert cmp.pass_rate_delta.point == pytest.approx(0.5)
+    assert cmp.baseline.n_trials == 4 and cmp.treatment.n_trials == 4

@@ -18,3 +18,4 @@ class ScoreRecord:
     num_steps: int
     prompt_tokens: int
     completion_tokens: int
+    trial: int = 0  # which repeat of the task this is (0 for a single-trial run)
