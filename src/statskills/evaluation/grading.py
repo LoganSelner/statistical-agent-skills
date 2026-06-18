@@ -24,6 +24,7 @@ def grade_trajectory(trajectory: Mapping[str, Any], task: Task) -> ScoreRecord:
         num_steps=len(trajectory.get("steps", [])),
         prompt_tokens=int(trajectory.get("prompt_tokens", 0)),
         completion_tokens=int(trajectory.get("completion_tokens", 0)),
+        trial=int(trajectory.get("trial", 0)),
     )
 
 
@@ -53,6 +54,7 @@ def grade(
                     num_steps=0,
                     prompt_tokens=0,
                     completion_tokens=0,
+                    trial=int(traj.get("trial", 0)),
                 )
             )
             continue
