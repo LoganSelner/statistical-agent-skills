@@ -1,11 +1,13 @@
 # Authored TRAP arm via Ollama, skills OFF (the baseline of the curated-vs-off pair).
 # Generate the data first:  python scripts/gen_authored_data.py
-# Model: qwen3-coder:30b — a strong agentic coder, so the agent can actually exploit the
-# skills (see ROADMAP Phase 4). Pull it on the Ollama host first.
+# Model: qwen2.5-coder:14b — fits a local GPU's VRAM comfortably (reliable + fast) and is
+# capable enough for the trials. qwen3-coder:30b is a stronger but Ollama-flaky (VRAM /
+# GPU-offload stalls) heavier alternative, for a later model-axis comparison.
 extends: slice.yaml
 llm:
   provider: ollama
-  model: qwen3-coder:30b
+  model: qwen2.5-coder:14b
+  request_timeout: 240    # seconds; bound a stalled generation (SDK default is 600)
 max_steps: 12
 trials: 10          # N trials per task for distributions + CIs (override with --trials)
 tasks:

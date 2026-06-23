@@ -12,7 +12,9 @@ budget before surfacing.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
+from typing import Any, TypeVar
 
 from tenacity import (
     before_sleep_log,
@@ -24,6 +26,8 @@ from tenacity import (
 
 logger = logging.getLogger(__name__)
 
+_F = TypeVar("_F", bound=Callable[..., Any])
+
 # Programming errors that will not recover on retry — re-raised immediately.
 NON_RETRYABLE: tuple[type[BaseException], ...] = (
     TypeError,
@@ -33,13 +37,20 @@ NON_RETRYABLE: tuple[type[BaseException], ...] = (
     SyntaxError,
 )
 
-# Decorator applied to a single external call (one HTTP/SDK request). Exponential
-# backoff, 4 attempts, re-raises the last exception so callers wrap it in a domain
-# error.
-retry_transient = retry(
-    retry=retry_if_exception(lambda e: not isinstance(e, NON_RETRYABLE)),
-    wait=wait_exponential(multiplier=1, min=2, max=60),
-    stop=stop_after_attempt(4),
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True,
-)
+
+def retry_transient(attempts: int = 3, *, max_wait: float = 60.0) -> Callable[[_F], _F]:
+    """Build a retry decorator for one external call (one HTTP/SDK request).
+
+    Exponential backoff over ``attempts`` tries, re-raising the last exception so the
+    caller can wrap it in a domain error. The predicate is type-based (retry anything
+    that is not an obvious programming error). A caller whose request already carries a
+    timeout keeps ``attempts`` low, so a stalled call fails fast instead of retrying the
+    full timeout several times.
+    """
+    return retry(
+        retry=retry_if_exception(lambda e: not isinstance(e, NON_RETRYABLE)),
+        wait=wait_exponential(multiplier=1, min=2, max=max_wait),
+        stop=stop_after_attempt(attempts),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )

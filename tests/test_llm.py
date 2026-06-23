@@ -191,6 +191,31 @@ def test_resolve_llm_config_model_only_override_same_provider():
     assert lc.model == "b"
 
 
+# --- request timeout (bounds a stalled call) ------------------------------------
+
+
+def test_request_timeout_default_and_resolved_from_config():
+    assert LLMConfig().request_timeout == 240.0
+    resolved = resolve_llm_config({"provider": "ollama", "request_timeout": 30})
+    assert resolved.request_timeout == 30.0
+
+
+def test_request_timeout_and_no_sdk_retries_passed_to_client(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    captured: dict[str, Any] = {}
+
+    class _CapturingOpenAI:
+        def __init__(self, **kwargs: Any) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr("openai.OpenAI", _CapturingOpenAI)
+    LLMClient(LLMConfig(request_timeout=42.0), base_url="http://x/v1")
+    assert captured["timeout"] == 42.0
+    # retry_transient is the sole retry controller; the SDK must not also retry.
+    assert captured["max_retries"] == 0
+
+
 def test_provider_switch_then_build_uses_ollama_default(
     monkeypatch: pytest.MonkeyPatch,
 ):

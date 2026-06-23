@@ -36,6 +36,7 @@ class LLMConfig(BaseModel):
     temperature: float = 0.0
     max_tokens: int = 2048
     base_url: str | None = None  # override the provider's default base URL
+    request_timeout: float = 240.0  # per-request timeout (s); bounds a stalled call
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,15 @@ class LLMClient:
         from openai import OpenAI
 
         # Keyless backends (Ollama) ignore the key, but the SDK requires a value.
-        self._client = OpenAI(api_key=api_key or "ollama", base_url=base_url)
+        # Bound a stalled call: an explicit timeout (the SDK default is 600s) and
+        # max_retries=0 so `retry_transient` is the only retry controller — the SDK's
+        # default of 2 retries would multiply a timed-out call past request_timeout.
+        self._client = OpenAI(
+            api_key=api_key or "ollama",
+            base_url=base_url,
+            timeout=self._config.request_timeout,
+            max_retries=0,
+        )
 
     @property
     def model(self) -> str:
@@ -108,7 +117,7 @@ class LLMClient:
         """The resolved endpoint — recorded in provenance (ROADMAP §9)."""
         return self._base_url
 
-    @retry_transient
+    @retry_transient(attempts=2)
     def _create(self, messages: list[Message]) -> Any:
         return self._client.chat.completions.create(
             model=self._config.model,
