@@ -98,11 +98,14 @@ class LLMClient:
         from openai import OpenAI
 
         # Keyless backends (Ollama) ignore the key, but the SDK requires a value.
-        # An explicit timeout bounds a stalled call (the SDK default is 600s).
+        # Bound a stalled call: an explicit timeout (the SDK default is 600s) and
+        # max_retries=0 so `retry_transient` is the only retry controller — the SDK's
+        # default of 2 retries would multiply a timed-out call past request_timeout.
         self._client = OpenAI(
             api_key=api_key or "ollama",
             base_url=base_url,
             timeout=self._config.request_timeout,
+            max_retries=0,
         )
 
     @property
