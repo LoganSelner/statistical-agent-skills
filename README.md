@@ -72,6 +72,19 @@ ollama pull qwen2.5-coder:7b
 uv run python scripts/run_slice.py --config configs/slice_ollama.yaml
 ```
 
+For long unattended runs (e.g. the multi-trial experiments), set these on the Ollama host
+so the model stays resident on the GPU and doesn't reload or get evicted between calls —
+the main cause of slow local runs:
+
+```bash
+export OLLAMA_KEEP_ALIVE=30m        # keep the model loaded between calls
+export OLLAMA_MAX_LOADED_MODELS=1   # avoid VRAM contention from extra models
+export OLLAMA_FLASH_ATTENTION=1     # optional: faster attention
+```
+
+Each request is also bounded by `llm.request_timeout` (default 240s) so a stalled
+generation fails fast instead of hanging.
+
 ## Project layout
 
 ```
