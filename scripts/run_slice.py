@@ -141,6 +141,7 @@ def execute_run(
             "base_url": getattr(llm, "base_url", None),
             "temperature": llm_config.temperature,
             "max_tokens": llm_config.max_tokens,
+            "request_timeout": llm_config.request_timeout,
             "max_steps": steps,
             "executor": executor_kind,
             "sandbox_image": image if executor_kind == "docker" else None,
