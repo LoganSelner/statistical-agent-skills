@@ -1,0 +1,20 @@
+# Engagement grid: does AGENT-ACTIVATED (progressive-disclosure) delivery close the
+# engagement gap that injected delivery left? {7B, 14B} x {off, L1 (injected), agentic}.
+# The decisive contrast is agentic vs L1 — same skill content, different delivery — on the
+# tasks injected-L1 never flipped (trap-correlation, trap-multiple-comparisons). See the
+# Phase-5 result (PR #12) and ROADMAP §5.
+#
+#   python scripts/gen_authored_data.py            # generate the trap CSVs first
+#   python scripts/run_matrix.py configs/experiments/engagement_grid.yaml
+#
+# A run manifest, not a component config (no `extends`). The arm "off" must be quoted (a
+# bare off is a YAML 1.1 boolean).
+trials: 5
+baseline_arm: "off"
+cells:
+  - { model: "qwen2.5-coder:7b",  arm: "off",     config: trap_7b.yaml }
+  - { model: "qwen2.5-coder:7b",  arm: "L1",      config: trap_7b_l1.yaml }
+  - { model: "qwen2.5-coder:7b",  arm: "agentic", config: trap_7b_agentic.yaml }
+  - { model: "qwen2.5-coder:14b", arm: "off",     config: trap_14b.yaml }
+  - { model: "qwen2.5-coder:14b", arm: "L1",      config: trap_14b_l1.yaml }
+  - { model: "qwen2.5-coder:14b", arm: "agentic", config: trap_14b_agentic.yaml }

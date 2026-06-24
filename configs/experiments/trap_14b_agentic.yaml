@@ -1,0 +1,10 @@
+# 14B + curated skills via AGENT-ACTIVATED delivery (see trap_7b_agentic.yaml). Same
+# skill content as trap_14b_l1 (resolution L1); only the delivery differs. Tests whether
+# the 14B applies Spearman/Holm when it must read the skill rather than have it injected.
+extends: trap_14b.yaml
+skills:
+  mode: curated
+  delivery: agentic
+  resolution: L1
+  router: forced
+  library: statistics
