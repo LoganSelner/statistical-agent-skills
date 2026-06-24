@@ -44,6 +44,44 @@ def test_unknown_mode_raises():
         build_skill_context({"mode": "bogus"})
 
 
+def test_delivery_defaults_to_injected():
+    ctx = build_skill_context(
+        {"mode": "curated", "library": str(FIXTURES), "router": "forced"}
+    )
+    assert ctx is not None and ctx.delivery == "injected"
+    selection = ctx.resolve(Task(id="t", prompt="p"))
+    assert selection.payload is not None
+    assert selection.discovery is None and selection.files == {}
+
+
+def test_agentic_delivery_yields_discovery_and_files_not_payload():
+    ctx = build_skill_context(
+        {
+            "mode": "curated",
+            "library": str(FIXTURES),
+            "resolution": "L1",
+            "router": "forced",
+            "delivery": "agentic",
+        }
+    )
+    assert ctx is not None and ctx.delivery == "agentic"
+
+    selection = ctx.resolve(Task(id="t", prompt="p"))
+    assert selection.payload is None  # nothing force-injected
+    assert selection.discovery is not None
+    assert "- sample-skill:" in selection.discovery  # L0 names + descriptions
+    # One readable file per selected skill, named <skill>.md, holding its body.
+    assert set(selection.files) == {"another-skill.md", "sample-skill.md"}
+    assert "sample-skill" in selection.files["sample-skill.md"]
+
+
+def test_unknown_delivery_raises():
+    with pytest.raises(ValueError, match="Unknown skills delivery"):
+        build_skill_context(
+            {"mode": "curated", "library": str(FIXTURES), "delivery": "bogus"}
+        )
+
+
 def test_bare_library_name_resolves_to_bundled_ignoring_cwd(tmp_path, monkeypatch):
     # A bare name must be the bundled library even if a same-named dir sits in the CWD,
     # so the same config always loads the same skills (reproducibility).
