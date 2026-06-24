@@ -14,6 +14,7 @@ dependencies = [
     "tenacity>=8",          # Transient-failure retry policy for external calls
     "rich>=13",             # Readable CLI / log output
     "openai>=1.0",          # EdenAI gateway via the OpenAI-compatible /v3 endpoint
+    "anthropic>=0.40",      # Native Anthropic SDK for the Claude (frontier) provider
 ]
 # The scientific stack (numpy/scipy/pandas/statsmodels) is deliberately NOT a harness
 # runtime dependency: model-generated analysis code runs inside the sandbox, so those
