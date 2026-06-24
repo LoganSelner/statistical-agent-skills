@@ -1,0 +1,14 @@
+# Claude Haiku 4.5 off baseline — the frontier instrument (needs ANTHROPIC_API_KEY).
+# The authored trap arm on a model that can actually invoke skills, unlike the local
+# qwen models (which read an offered skill 0/55 trials). Setting provider: anthropic
+# replaces slice.yaml's EdenAI llm block wholesale (provider is an impl selector).
+extends: ../slice.yaml
+llm:
+  provider: anthropic
+  model: claude-haiku-4-5
+  temperature: 0
+  request_timeout: 120   # seconds; Haiku is fast, this only bounds a true stall
+max_steps: 12
+trials: 5
+tasks:
+  set: authored_trap
