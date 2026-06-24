@@ -10,6 +10,10 @@ only in base URL, key policy, and default model:
 - ``ollama`` — a local Ollama server's OpenAI-compatible endpoint; ``model`` is the
   Ollama tag (e.g. ``"qwen2.5-coder:7b"``). Keyless.
 
+A third provider, ``anthropic`` (Claude), uses the native Anthropic SDK rather than
+the OpenAI-compatible path and lives in :mod:`.anthropic_client`; ``build_llm``
+dispatches to it, leaving this module's OpenAI-compatible client untouched.
+
 Provider-agnostic above this module: the rest of the harness imports the :class:`LLM`
 protocol, :func:`build_llm`, and the neutral message/response types — never ``openai``.
 The action protocol is harness-parsed code (CodeAct), so the client never depends on
@@ -31,7 +35,7 @@ from statskills.core.types import LLMResponse, Message
 class LLMConfig(BaseModel):
     """Configuration for an OpenAI-compatible LLM."""
 
-    provider: str = "edenai"  # "edenai" | "ollama"
+    provider: str = "edenai"  # "edenai" | "ollama" | "anthropic"
     model: str | None = None  # provider/model (edenai) or tag (ollama); None → default
     temperature: float = 0.0
     max_tokens: int = 2048
@@ -60,6 +64,11 @@ PROVIDERS: dict[str, _Provider] = {
         base_url_env="OLLAMA_BASE_URL",
     ),
 }
+
+# Claude is reached through the native Anthropic SDK (not an OpenAI-compatible base
+# URL), so build_llm dispatches it separately rather than via the PROVIDERS presets.
+_ANTHROPIC_PROVIDER = "anthropic"
+_ANTHROPIC_DEFAULT_MODEL = "claude-haiku-4-5"  # the experiment's frontier instrument
 
 
 @runtime_checkable
@@ -153,13 +162,16 @@ def build_llm(config: LLMConfig) -> LLM:
     Resolves the base URL (config override > provider env override > preset default),
     the model (config model > preset default), and the API key (the provider's env var,
     or a placeholder for keyless providers). Raises ``ValueError`` for an unknown
-    provider or a missing required key.
+    provider or a missing required key. ``anthropic`` uses the native SDK and is built
+    separately (no base URL).
     """
+    if config.provider == _ANTHROPIC_PROVIDER:
+        return _build_anthropic(config)
+
     preset = PROVIDERS.get(config.provider)
     if preset is None:
-        raise ValueError(
-            f"Unknown LLM provider '{config.provider}'. Known: {sorted(PROVIDERS)}."
-        )
+        known = sorted([*PROVIDERS, _ANTHROPIC_PROVIDER])
+        raise ValueError(f"Unknown LLM provider '{config.provider}'. Known: {known}.")
     base_url = (
         config.base_url
         or (os.environ.get(preset.base_url_env) if preset.base_url_env else None)
@@ -177,6 +189,26 @@ def build_llm(config: LLMConfig) -> LLM:
         api_key = "ollama"  # placeholder; keyless providers ignore it
     resolved = config.model_copy(update={"model": model})
     return LLMClient(resolved, base_url=base_url, api_key=api_key)
+
+
+def _build_anthropic(config: LLMConfig) -> LLM:
+    """Construct the native Claude client (provider ``anthropic``).
+
+    Requires ``ANTHROPIC_API_KEY``; defaults the model to the experiment's instrument
+    (``claude-haiku-4-5``) when the config omits it. Imported lazily so the rest of the
+    harness never depends on the ``anthropic`` SDK.
+    """
+    from statskills.agent.anthropic_client import AnthropicClient
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise ValueError(
+            "ANTHROPIC_API_KEY is required for provider 'anthropic'. "
+            "Set it in .env or your environment."
+        )
+    model = config.model or _ANTHROPIC_DEFAULT_MODEL
+    resolved = config.model_copy(update={"model": model})
+    return AnthropicClient(resolved, api_key=api_key)
 
 
 def resolve_llm_config(
