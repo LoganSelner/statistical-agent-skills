@@ -1,0 +1,5 @@
+# 7B off baseline. Weaker model — likely naive enough to fall into the traps unaided,
+# giving curated skills headroom to help (SkillsBench: weaker models gain most).
+extends: _trap_base.yaml
+llm:
+  model: qwen2.5-coder:7b

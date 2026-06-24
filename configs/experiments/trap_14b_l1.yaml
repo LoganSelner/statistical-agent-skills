@@ -1,0 +1,7 @@
+# 14B + curated skills at L1 (instruction bodies). Reproduces the Phase-5a condition.
+extends: trap_14b.yaml
+skills:
+  mode: curated
+  resolution: L1
+  router: forced
+  library: statistics

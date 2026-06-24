@@ -1,0 +1,7 @@
+# 7B + curated skills at L1 (the SKILL.md instruction bodies — prose guidance).
+extends: trap_7b.yaml
+skills:
+  mode: curated
+  resolution: L1
+  router: forced
+  library: statistics

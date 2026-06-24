@@ -1,0 +1,5 @@
+# 14B off baseline — the Phase-5a model. Solves several traps unaided (welch/paired/mwu),
+# so it anchors the "high-capability, less headroom" end of the grid.
+extends: _trap_base.yaml
+llm:
+  model: qwen2.5-coder:14b

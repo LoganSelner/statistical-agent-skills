@@ -1,0 +1,15 @@
+# Shared settings for the Phase-5 disclosure x model grid (authored TRAP arm).
+# Per-model bases (trap_7b.yaml / trap_14b.yaml) extend this and set llm.model; the
+# per-arm files (…_l1.yaml / …_l2.yaml) add the skills block. Generate the data first:
+#   python scripts/gen_authored_data.py
+# Setting llm.provider here replaces slice.yaml's EdenAI llm block wholesale (provider is
+# an impl selector), so the merged llm is purely the Ollama settings below + model.
+extends: ../slice.yaml
+llm:
+  provider: ollama
+  temperature: 0
+  request_timeout: 240   # seconds; bound a stalled generation (SDK default is 600)
+max_steps: 12
+trials: 5                # N trials per task for distributions + CIs (override with --trials)
+tasks:
+  set: authored_trap
