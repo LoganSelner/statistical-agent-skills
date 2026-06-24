@@ -41,9 +41,10 @@ Run `make help` for all targets. Common ones:
 
 ## Configuration
 
-Model access goes through an OpenAI-compatible client with two providers:
+Model access goes through a small `LLM` interface with three providers:
 
-- **EdenAI** (default) — a hosted gateway. Copy the example env file and add your key:
+- **EdenAI** (default) — a hosted OpenAI-compatible gateway. Copy the example env file
+  and add your key:
   ```bash
   cp .env.example .env     # then set EDENAI_API_KEY=...
   ```
@@ -51,6 +52,10 @@ Model access goes through an OpenAI-compatible client with two providers:
   `qwen2.5-coder:7b`) or the ready-made `configs/slice_ollama.yaml`; override the
   endpoint with `OLLAMA_BASE_URL` if the default `http://localhost:11434/v1` can't
   reach it.
+- **Anthropic (Claude)** — the frontier provider, via the **native Anthropic SDK** (not
+  an OpenAI-compatible shim). Set `provider: anthropic` (e.g.
+  `configs/experiments/trap_haiku.yaml`, defaulting to `claude-haiku-4-5`) and
+  `ANTHROPIC_API_KEY`.
 
 ## Run the vertical slice
 

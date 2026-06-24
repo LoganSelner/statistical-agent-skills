@@ -10,9 +10,9 @@ only in base URL, key policy, and default model:
 - ``ollama`` — a local Ollama server's OpenAI-compatible endpoint; ``model`` is the
   Ollama tag (e.g. ``"qwen2.5-coder:7b"``). Keyless.
 
-A third provider, ``anthropic`` (Claude), uses the native Anthropic SDK rather than the
-OpenAI-compatible path and lives in :mod:`.anthropic_client`; ``build_llm`` dispatches to
-it. Adding it kept this module's OpenAI-compatible client untouched.
+A third provider, ``anthropic`` (Claude), uses the native Anthropic SDK rather than
+the OpenAI-compatible path and lives in :mod:`.anthropic_client`; ``build_llm``
+dispatches to it, leaving this module's OpenAI-compatible client untouched.
 
 Provider-agnostic above this module: the rest of the harness imports the :class:`LLM`
 protocol, :func:`build_llm`, and the neutral message/response types — never ``openai``.
