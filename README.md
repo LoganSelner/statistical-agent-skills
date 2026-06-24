@@ -85,6 +85,30 @@ export OLLAMA_FLASH_ATTENTION=1     # optional: faster attention
 Each request is also bounded by `llm.request_timeout` (default 240s) so a stalled
 generation fails fast instead of hanging.
 
+## Experiments
+
+A single **skills-off vs curated** pair over N trials, with a bootstrapped pass-rate
+delta CI:
+
+```bash
+uv run python scripts/run_experiment.py \
+    --off configs/trap_ollama.yaml --skills configs/trap_ollama_skills.yaml --trials 10
+```
+
+A **condition-matrix grid** sweeps several cells at once — e.g. the Phase-5 diagnostic
+`{7B, 14B} × {off, L1, L2}` on the authored trap arm. Each `(model, arm)` cell runs once
+over N trials; each skill arm is compared to its own model's single baseline:
+
+```bash
+uv run python scripts/gen_authored_data.py            # generate the trap CSVs first
+uv run python scripts/run_matrix.py configs/experiments/disclosure_grid.yaml
+uv run python scripts/run_matrix.py configs/experiments/disclosure_grid.yaml --trials 1  # smoke
+```
+
+Cells land in `results/matrix-<ts>/<model>__<arm>/`, with a `matrix.json` summary
+(pass-rate CIs + per-arm deltas + per-task frequencies). Pass `--out <dir> --resume` to
+continue an interrupted grid without re-running completed cells.
+
 ## Project layout
 
 ```
@@ -92,10 +116,13 @@ src/statskills/
   core/              # project-agnostic harness: registry, config, provenance, retry
   agent/             # EdenAI client, CodeAct action parser, ReAct loop, trajectory
   sandbox/           # Executor interface + Docker (default) & local backends + image
-  tasks/             # Task schema + authored slice tasks
-configs/             # YAML configs (extends: inheritance)
+  tasks/             # Task schema + authored slice/trap tasks + DABench adapter
+  skills/            # skill parser/loader (L0–L3), forced router, statistics library
+  evaluation/        # verifiers, metrics, N-trials CIs, run-artifact I/O (runs.py)
+  experiments/       # condition-matrix runner (model × disclosure grid)
+configs/             # YAML configs (extends: inheritance); experiments/ = grid cells
 data/authored/       # small bundled datasets for the authored tasks
-scripts/run_slice.py # end-to-end Phase 1 runner
+scripts/             # run_slice, run_experiment, run_matrix, grade, compare CLIs
 tests/               # pytest suite
 ROADMAP.md           # research framing + architecture + phased plan
 ```

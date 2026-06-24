@@ -1,0 +1,8 @@
+# 14B + curated skills at L2 (instructions + worked code examples). Tests whether worked
+# examples flip correlation->Spearman / MC-correction where L1 prose did not.
+extends: trap_14b.yaml
+skills:
+  mode: curated
+  resolution: L2
+  router: forced
+  library: statistics

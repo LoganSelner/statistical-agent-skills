@@ -1,0 +1,20 @@
+# Phase-5 diagnostic grid: {7B, 14B} x {off, L1, L2} on the 5 authored trap tasks.
+# Goal: locate a regime where curated skills measurably help — separate "no headroom"
+# (model solves the trap unaided) from "knowledge present but unapplied" (L1) vs
+# "applied via worked code" (L2). See ROADMAP Phase 5.
+#
+#   python scripts/gen_authored_data.py            # generate the trap CSVs first
+#   python scripts/run_matrix.py configs/experiments/disclosure_grid.yaml
+#
+# This is a run manifest, not a component config (no `extends`). Each cell's `config` is
+# resolved relative to this file's directory. NOTE: the arm "off" must be quoted — a bare
+# `off` is a YAML 1.1 boolean (the runner rejects an unquoted one with a clear error).
+trials: 5
+baseline_arm: "off"
+cells:
+  - { model: "qwen2.5-coder:7b",  arm: "off", config: trap_7b.yaml }
+  - { model: "qwen2.5-coder:7b",  arm: "L1",  config: trap_7b_l1.yaml }
+  - { model: "qwen2.5-coder:7b",  arm: "L2",  config: trap_7b_l2.yaml }
+  - { model: "qwen2.5-coder:14b", arm: "off", config: trap_14b.yaml }
+  - { model: "qwen2.5-coder:14b", arm: "L1",  config: trap_14b_l1.yaml }
+  - { model: "qwen2.5-coder:14b", arm: "L2",  config: trap_14b_l2.yaml }

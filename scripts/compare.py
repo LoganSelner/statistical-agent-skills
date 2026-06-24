@@ -19,17 +19,14 @@ import sys
 from statskills.evaluation.compare import compare_runs, compare_trials
 from statskills.evaluation.metrics import Metrics
 from statskills.evaluation.results import ScoreRecord
+from statskills.evaluation.runs import load_scores
 
 
 def _load_scores(run_dir: Path) -> list[ScoreRecord]:
-    path = run_dir / "scores.jsonl"
-    if not path.exists():
-        raise SystemExit(f"No scores.jsonl in {run_dir} — grade the run first.")
-    return [
-        ScoreRecord(**json.loads(line))
-        for line in path.read_text().splitlines()
-        if line.strip()
-    ]
+    try:
+        return load_scores(run_dir)
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def _label(run_dir: Path) -> str:

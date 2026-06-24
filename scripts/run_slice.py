@@ -94,10 +94,13 @@ def execute_run(
     model: str | None = None,
     max_steps: int | None = None,
     trials: int | None = None,
+    out_dir: Path | None = None,
 ) -> Path:
     """Run a config over N trials x tasks; return the results directory.
 
-    Build problems (missing key / sandbox) raise ValueError / DockerError.
+    ``out_dir`` overrides the default ``results/run-<ts>`` location (the matrix runner
+    uses it to place each cell in a stable per-cell directory). Build problems (missing
+    key / sandbox) raise ValueError / DockerError.
     """
     cfg: dict[str, Any] = load_yaml_with_inheritance(config_path)
     llm_config = resolve_llm_config(cfg.get("llm"), provider=provider, model=model)
@@ -117,7 +120,7 @@ def execute_run(
     skills_mode = "off" if skill_ctx is None else "curated"
 
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    out_dir = RESULTS_DIR / f"run-{run_id}"
+    out_dir = out_dir if out_dir is not None else RESULTS_DIR / f"run-{run_id}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     skills_block = cfg.get("skills") or {}

@@ -13,17 +13,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
-import json
 from pathlib import Path
 import sys
 
-import statskills.evaluation  # noqa: F401 - registers the built-in verifiers
-from statskills.evaluation.grading import grade
 from statskills.evaluation.metrics import aggregate
 from statskills.evaluation.results import ScoreRecord
+from statskills.evaluation.runs import grade_run
 from statskills.evaluation.trials import summarize_trials
-from statskills.tasks.loader import load_tasks
 
 
 def _print_single(run_name: str, records: list[ScoreRecord]) -> None:
@@ -63,26 +59,11 @@ def main() -> int:
     parser.add_argument("run_dir", type=Path, help="A results/run-* directory.")
     args = parser.parse_args()
 
-    traj_path = args.run_dir / "trajectories.jsonl"
-    if not traj_path.exists():
-        print(f"No trajectories.jsonl in {args.run_dir}", file=sys.stderr)
+    try:
+        records = grade_run(args.run_dir)
+    except FileNotFoundError as exc:
+        print(exc, file=sys.stderr)
         return 1
-    trajectories = [
-        json.loads(line) for line in traj_path.read_text().splitlines() if line.strip()
-    ]
-
-    run_meta_path = args.run_dir / "run.json"
-    task_set = (
-        json.loads(run_meta_path.read_text()).get("task_set")
-        if run_meta_path.exists()
-        else None
-    )
-    tasks_by_id = {t.id: t for t in load_tasks(task_set)}
-    records = grade(trajectories, tasks_by_id)
-
-    (args.run_dir / "scores.jsonl").write_text(
-        "".join(json.dumps(asdict(r)) + "\n" for r in records)
-    )
 
     n_trials = len({r.trial for r in records})
     if n_trials > 1:

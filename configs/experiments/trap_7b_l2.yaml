@@ -1,0 +1,9 @@
+# 7B + curated skills at L2 (instructions + worked code examples). L2 tests the
+# application gap: a code agent may copy `spearmanr(...)` from an example more readily
+# than act on L1 prose alone.
+extends: trap_7b.yaml
+skills:
+  mode: curated
+  resolution: L2
+  router: forced
+  library: statistics
