@@ -9,6 +9,8 @@ retried. One sandbox session is opened per task and closed when the loop ends.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from statskills.agent.action import CodeAction, FinalAnswer, parse_action
 from statskills.agent.context import initial_messages, render_observation
 from statskills.agent.llm import LLM
@@ -45,13 +47,28 @@ class ReActAgent:
         self._max_steps = max_steps
         self._system_prompt = system_prompt
 
-    def run(self, task: Task, *, skill_payload: str | None = None) -> Trajectory:
+    def run(
+        self,
+        task: Task,
+        *,
+        skill_payload: str | None = None,
+        skill_discovery: str | None = None,
+        skill_files: Mapping[str, str] | None = None,
+    ) -> Trajectory:
+        """Drive ``task`` to a final answer.
+
+        Skills reach the agent one of two ways (mutually exclusive): ``injected`` passes
+        ``skill_payload`` (bodies in the system prompt); ``agentic`` passes
+        ``skill_discovery`` (the L0 surface) plus ``skill_files`` (staged in the sandbox
+        for the agent to read on demand).
+        """
         filenames = tuple(d.name for d in task.datasets)
         messages: list[Message] = initial_messages(
             task.prompt,
             filenames,
             system_prompt=self._system_prompt,
             skill_payload=skill_payload,
+            skill_discovery=skill_discovery,
         )
         steps: list[AgentStep] = []
         last_observation: dict[str, str] = {}
@@ -59,7 +76,7 @@ class ReActAgent:
         stop_reason = "max_steps"
         prompt_tokens = completion_tokens = 0
 
-        session = self._executor.start(datasets=task.dataset_paths)
+        session = self._executor.start(datasets=task.dataset_paths, skills=skill_files)
         try:
             for i in range(self._max_steps):
                 resp = self._llm.complete(messages)

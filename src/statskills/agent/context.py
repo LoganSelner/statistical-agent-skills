@@ -7,7 +7,11 @@ observations.
 
 from __future__ import annotations
 
-from statskills.agent.prompts import SYSTEM_PROMPT, build_task_prompt
+from statskills.agent.prompts import (
+    SYSTEM_PROMPT,
+    build_skill_discovery_section,
+    build_task_prompt,
+)
 from statskills.core.types import Message
 from statskills.sandbox.base import ExecResult
 
@@ -20,16 +24,21 @@ def initial_messages(
     *,
     system_prompt: str = SYSTEM_PROMPT,
     skill_payload: str | None = None,
+    skill_discovery: str | None = None,
 ) -> list[Message]:
     """The opening system + task messages.
 
-    A non-empty ``skill_payload`` (rendered by the skills layer) is appended to the
-    system message as a delimited section, keeping it inspectable; ``None`` leaves the
-    system message identical to the no-skills baseline.
+    Skill context is appended to the system message as a delimited section, keeping it
+    inspectable. ``injected`` delivery passes ``skill_payload`` (full skill bodies);
+    ``agentic`` delivery passes ``skill_discovery`` (the L0 names+descriptions surface,
+    bodies loaded on demand from the sandbox). With neither, the system message is
+    identical to the no-skills baseline.
     """
     system = system_prompt
     if skill_payload:
         system = f"{system_prompt}\n\n# Available skills\n\n{skill_payload}"
+    elif skill_discovery:
+        system = f"{system_prompt}\n\n{build_skill_discovery_section(skill_discovery)}"
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": build_task_prompt(task_prompt, filenames)},

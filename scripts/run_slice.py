@@ -64,7 +64,16 @@ def _run_one(
     """Run one (trial, task); return its trajectory record tagged with the trial."""
     selection = skill_ctx.resolve(task) if skill_ctx else None
     try:
-        traj = agent.run(task, skill_payload=selection.payload if selection else None)
+        if selection is None or skill_ctx is None:
+            traj = agent.run(task)
+        elif skill_ctx.delivery == "agentic":
+            traj = agent.run(
+                task,
+                skill_discovery=selection.discovery,
+                skill_files=selection.files,
+            )
+        else:
+            traj = agent.run(task, skill_payload=selection.payload)
     except Exception as exc:
         logger.exception("Task %s (trial %d) failed", task.id, trial)
         return {"task_id": task.id, "trial": trial, "error": str(exc)}
@@ -128,6 +137,7 @@ def execute_run(
     if skill_ctx is not None:
         skills_meta.update(
             resolution=skill_ctx.level.name,
+            delivery=skill_ctx.delivery,
             router=str(skills_block.get("router", "forced")),
             library=str(skills_block.get("library", "statistics")),
             skills=list(skill_ctx.library.names),

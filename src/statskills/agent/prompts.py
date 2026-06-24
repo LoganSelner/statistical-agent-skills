@@ -41,3 +41,23 @@ def build_task_prompt(prompt: str, filenames: tuple[str, ...]) -> str:
     """Render the per-task user turn."""
     files = ", ".join(filenames) if filenames else "(none)"
     return f"Available files: {files}\n\nTask: {prompt}"
+
+
+def build_skill_discovery_section(discovery: str) -> str:
+    """The agent-activated skills surface for the system prompt.
+
+    Progressive disclosure: lists skill names + descriptions and how to read a skill's
+    full instructions on demand — the body is a sandbox file, loaded only if the agent
+    reads it (contrast: ``injected`` delivery, which puts every body in context).
+    """
+    return (
+        "# Available skills\n\n"
+        "Reference skills are available as files in the skills/ directory — each "
+        "addresses a common pitfall in statistical analysis. BEFORE you choose a "
+        "method, read any that may apply and follow their guidance:\n"
+        "```python\n"
+        'print(open("skills/<name>.md").read())\n'
+        "```\n\n"
+        "Skills (name: when to use):\n"
+        f"{discovery}"
+    )
