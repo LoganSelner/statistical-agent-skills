@@ -8,6 +8,7 @@ this executor is never selected as an automatic fallback.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import os
 from pathlib import Path
 import shutil
@@ -27,12 +28,22 @@ class LocalExecutor:
     def __init__(self, *, timeout: float = 30.0) -> None:
         self._timeout = timeout
 
-    def start(self, datasets: tuple[Path, ...] = ()) -> Session:
+    def start(
+        self,
+        datasets: tuple[Path, ...] = (),
+        *,
+        skills: Mapping[str, str] | None = None,
+    ) -> Session:
         workdir = tempfile.mkdtemp(prefix="statskills-local-")
         for ds in datasets:
             dest = Path(workdir) / ds.name
             shutil.copy(ds, dest)
             os.chmod(dest, 0o444)  # best-effort read-only (parity with Docker)
+        if skills:
+            skills_dir = Path(workdir) / "skills"
+            skills_dir.mkdir()
+            for filename, content in skills.items():
+                (skills_dir / filename).write_text(content)
         command = [sys.executable, "-u", _DRIVER_PATH]
         return SubprocessSession(
             command, timeout=self._timeout, cwd=workdir, cleanup_dir=workdir

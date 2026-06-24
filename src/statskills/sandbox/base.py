@@ -11,6 +11,7 @@ agent changing. See ROADMAP §7.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -44,4 +45,13 @@ class Session(Protocol):
 class Executor(Protocol):
     """Creates fresh sessions. A fresh session per task gives isolation (§7)."""
 
-    def start(self, datasets: tuple[Path, ...] = ()) -> Session: ...
+    def start(
+        self,
+        datasets: tuple[Path, ...] = (),
+        *,
+        skills: Mapping[str, str] | None = None,
+    ) -> Session:
+        """Open a session. ``datasets`` are staged read-only by basename in the working
+        dir; ``skills`` (filename -> content) are staged read-only under ``skills/`` so
+        the agent can read them on demand (agent-activated delivery, ROADMAP §5)."""
+        ...
