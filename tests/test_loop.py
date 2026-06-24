@@ -144,3 +144,36 @@ def test_no_skill_payload_leaves_system_prompt_unchanged():
     llm = FakeLLM(["FINAL ANSWER: ok"])
     ReActAgent(llm, LocalExecutor()).run(Task(id="t9", prompt="x"))
     assert llm.seen[0][0]["content"] == SYSTEM_PROMPT
+
+
+def test_agentic_discovery_in_system_prompt_without_bodies():
+    # Agent-activated delivery: the L0 surface is shown, but skill bodies are NOT.
+    llm = FakeLLM(["FINAL ANSWER: ok"])
+    ReActAgent(llm, LocalExecutor()).run(
+        Task(id="t10", prompt="x"),
+        skill_discovery="- hypothesis-test-selection: pick the right test",
+        skill_files={"hypothesis-test-selection.md": "SECRET-SKILL-BODY"},
+    )
+    system = llm.seen[0][0]["content"]
+    assert "# Available skills" in system
+    assert "hypothesis-test-selection: pick the right test" in system
+    assert 'open("skills/<name>.md")' in system  # how to read on demand
+    assert "SECRET-SKILL-BODY" not in system  # body is NOT injected
+
+
+def test_agent_can_read_a_staged_skill_file(tmp_path: Path):
+    # End-to-end: a staged skill is readable; its content returns as an observation.
+    task = Task(id="t11", prompt="x", datasets=(_csv(tmp_path),))
+    llm = FakeLLM(
+        [
+            "```python\nprint(open('skills/guide.md').read())\n```",
+            "FINAL ANSWER: done",
+        ]
+    )
+    traj = ReActAgent(llm, LocalExecutor(), max_steps=5).run(
+        task,
+        skill_discovery="- guide: read me",
+        skill_files={"guide.md": "USE-SPEARMAN-HERE"},
+    )
+    assert "USE-SPEARMAN-HERE" in (traj.steps[0].observation or "")
+    assert traj.final_answer == "done"

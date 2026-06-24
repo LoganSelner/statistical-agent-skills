@@ -8,6 +8,7 @@ Docker is unavailable or the image is missing, construction raises
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import os
 from pathlib import Path
 import shutil
@@ -88,7 +89,12 @@ class DockerExecutor:
         )
         return out.stdout.strip()
 
-    def start(self, datasets: tuple[Path, ...] = ()) -> Session:
+    def start(
+        self,
+        datasets: tuple[Path, ...] = (),
+        *,
+        skills: Mapping[str, str] | None = None,
+    ) -> Session:
         # Stage read-only copies of the datasets on the host, then bind-mount each
         # into the working dir read-only — cell code can read them but never
         # overwrite them (which would corrupt later cells in the same stateful
@@ -101,6 +107,16 @@ class DockerExecutor:
             shutil.copy(ds, dest)
             os.chmod(dest, 0o644)  # world-readable for the sandbox UID
             mounts += ["-v", f"{dest}:/work/{ds.name}:ro"]
+
+        # Skill files the agent may read on demand, staged read-only under skills/.
+        if skills:
+            skills_dir = Path(staging) / "skills"
+            skills_dir.mkdir()
+            for filename, content in skills.items():
+                dest = skills_dir / filename
+                dest.write_text(content)
+                os.chmod(dest, 0o644)
+            mounts += ["-v", f"{skills_dir}:/work/skills:ro"]
 
         name = f"statskills-{uuid.uuid4().hex[:12]}"
         command = [

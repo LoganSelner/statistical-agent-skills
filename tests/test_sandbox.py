@@ -50,6 +50,19 @@ def test_reads_dataset_by_basename(tmp_path: Path):
         sess.close()
 
 
+def test_reads_staged_skill_file():
+    # Skills are staged read-only under skills/ for agent-activated delivery.
+    sess = LocalExecutor().start(
+        skills={"hypothesis-test-selection.md": "Use Welch by default."}
+    )
+    try:
+        r = sess.run("print(open('skills/hypothesis-test-selection.md').read())")
+        assert r.ok, r.stderr
+        assert "Use Welch by default." in r.stdout
+    finally:
+        sess.close()
+
+
 def test_timeout_is_reported():
     sess = LocalExecutor(timeout=1.0).start()
     try:

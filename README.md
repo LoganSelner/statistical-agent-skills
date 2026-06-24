@@ -109,6 +109,13 @@ Cells land in `results/matrix-<ts>/<model>__<arm>/`, with a `matrix.json` summar
 (pass-rate CIs + per-arm deltas + per-task frequencies). Pass `--out <dir> --resume` to
 continue an interrupted grid without re-running completed cells.
 
+**Skill delivery** (`skills.delivery` in a config) controls *how* curated skills reach the
+agent: `injected` (default) appends skill bodies to the system prompt; `agentic` shows only
+the L0 names+descriptions and stages each skill as a file in the sandbox, so a body enters
+context only when the agent chooses to read it (progressive disclosure, as in industry
+skill systems). The `engagement_grid.yaml` manifest sweeps `{off, L1 injected, agentic}` to
+test whether faithful delivery changes whether the agent applies a skill.
+
 ## Project layout
 
 ```

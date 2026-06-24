@@ -34,3 +34,14 @@ def render_library(skills: Iterable[Skill], level: SkillResolution) -> str:
     """The combined payload for a set of skills, deterministically ordered by name."""
     ordered = sorted(skills, key=lambda s: s.name)
     return "\n\n".join(render(s, level) for s in ordered)
+
+
+def render_discovery(skills: Iterable[Skill]) -> str:
+    """The L0 discovery surface — each skill's name + description, one per line.
+
+    This is what an agent sees in agent-activated delivery: just enough to decide which
+    skill to read (the body loads only when the agent opens its file), deterministically
+    ordered by name.
+    """
+    ordered = sorted(skills, key=lambda s: s.name)
+    return "\n".join(f"- {s.name}: {s.description}" for s in ordered)

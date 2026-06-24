@@ -10,41 +10,60 @@ byte-for-byte unchanged.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from statskills.skills.library import SkillLibrary, load_library
-from statskills.skills.loader import render_library
+from statskills.skills.loader import render, render_discovery, render_library
 from statskills.skills.router import get_router
 from statskills.skills.schema import SkillResolution, SkillRouter
 from statskills.tasks.schema import Task
 
 _LIBRARY_ROOT = Path(__file__).resolve().parent / "library"
 
+_DELIVERIES = ("injected", "agentic")
+
 
 @dataclass(frozen=True)
 class SkillSelection:
-    """What one task got: the rendered payload + selected skill names (provenance)."""
+    """What one task got, plus how the skills reach the agent (provenance).
+
+    ``injected`` delivery fills ``payload`` (skill bodies for the system prompt).
+    ``agentic`` delivery fills ``discovery`` (the L0 names+descriptions surface) and
+    ``files`` (``filename -> body``, staged in the sandbox for the agent to read on
+    demand), leaving ``payload`` empty. ``names`` is the selected set either way.
+    """
 
     payload: str | None
     names: tuple[str, ...]
+    discovery: str | None = None
+    files: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class SkillContext:
-    """A resolved skills condition (library + router + disclosure level)."""
+    """A resolved skills condition (library + router + disclosure level + delivery)."""
 
     library: SkillLibrary
     router: SkillRouter
     level: SkillResolution
+    delivery: str = "injected"
 
     def resolve(self, task: Task) -> SkillSelection:
-        """Select skills for ``task`` and render the context payload at this level."""
+        """Select skills for ``task`` and render them for this delivery + level."""
         skills = self.router.select(task, self.library)
         names = tuple(s.name for s in skills)
-        payload = render_library(skills, self.level) if skills else None
-        return SkillSelection(payload=payload, names=names)
+        if not skills:
+            return SkillSelection(payload=None, names=())
+        if self.delivery == "agentic":
+            return SkillSelection(
+                payload=None,
+                names=names,
+                discovery=render_discovery(skills),
+                files={f"{s.name}.md": render(s, self.level) for s in skills},
+            )
+        return SkillSelection(payload=render_library(skills, self.level), names=names)
 
 
 def build_skill_context(cfg: Mapping[str, Any] | None) -> SkillContext | None:
@@ -55,10 +74,15 @@ def build_skill_context(cfg: Mapping[str, Any] | None) -> SkillContext | None:
         return None
     if mode != "curated":
         raise ValueError(f"Unknown skills mode {mode!r}. Known: off, curated.")
+    delivery = str(cfg.get("delivery", "injected")).lower()
+    if delivery not in _DELIVERIES:
+        raise ValueError(
+            f"Unknown skills delivery {delivery!r}. Known: {', '.join(_DELIVERIES)}."
+        )
     library = load_library(_resolve_library(str(cfg.get("library", "statistics"))))
     router = get_router(str(cfg.get("router", "forced")))
     level = SkillResolution.parse(cfg.get("resolution", "L1"))
-    return SkillContext(library=library, router=router, level=level)
+    return SkillContext(library=library, router=router, level=level, delivery=delivery)
 
 
 def _resolve_library(value: str) -> Path:
