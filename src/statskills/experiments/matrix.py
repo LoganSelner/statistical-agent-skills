@@ -16,12 +16,15 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from typing import Any
 
 from statskills.evaluation.compare import TrialComparison, compare_trials
 from statskills.evaluation.results import ScoreRecord
 from statskills.evaluation.trials import TrialSummary, summarize_trials
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -155,8 +158,13 @@ def run_matrix(
 ) -> MatrixResult:
     """Run every cell once into ``out_dir/<cell.label>`` and compute per-arm deltas.
 
-    With ``resume=True`` a cell whose directory is already graded is loaded instead of
-    re-run, so an interrupted grid can be continued without repeating completed cells.
+    With ``resume=True`` a cell already graded *at the requested trial count* is loaded
+    instead of re-run, so an interrupted grid continues without repeating completed
+    cells. A cached cell whose trial count differs from ``manifest.trials`` (e.g. left
+    from a smaller smoke run) is treated as stale and re-run, so the grid never mixes
+    cells of different N. Resume keys on the cell's ``(model, arm)`` directory, so reuse
+    a given ``out_dir`` only to continue the *same* grid — point a different manifest or
+    config at a fresh directory.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -164,7 +172,9 @@ def run_matrix(
     cell_results: list[CellResult] = []
     for cell in manifest.cells:
         cell_dir = out_dir / cell.label
-        cached_records = _resume_cell(io, cell_dir) if resume else None
+        cached_records = (
+            _resume_cell(io, cell_dir, manifest.trials, cell.label) if resume else None
+        )
         if cached_records is not None:
             records, run_dir, cached = cached_records, cell_dir, True
         else:
@@ -197,9 +207,26 @@ def run_matrix(
     return MatrixResult(cells=tuple(cell_results), deltas=tuple(deltas))
 
 
-def _resume_cell(io: MatrixIO, cell_dir: Path) -> list[ScoreRecord] | None:
-    """Return an already-graded cell's records, or ``None`` if it must be run."""
+def _resume_cell(
+    io: MatrixIO, cell_dir: Path, trials: int, label: str
+) -> list[ScoreRecord] | None:
+    """Return a graded cell's records if usable, else ``None`` (run/re-run the cell).
+
+    A cached cell is reused only if its trial count matches ``trials``; a mismatch (e.g.
+    a directory left from a smaller smoke run) is stale, so the cell is re-run rather
+    than silently mixing different-N cells into the grid.
+    """
     try:
-        return io.load_scores(cell_dir)
+        records = io.load_scores(cell_dir)
     except FileNotFoundError:
         return None
+    cached_trials = len({r.trial for r in records})
+    if cached_trials != trials:
+        logger.warning(
+            "Cached cell %s has %d trial(s) but the grid wants %d — re-running it.",
+            label,
+            cached_trials,
+            trials,
+        )
+        return None
+    return records

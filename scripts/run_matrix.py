@@ -135,7 +135,11 @@ def main() -> int:
     parser.add_argument(
         "--resume",
         action="store_true",
-        help="Skip cells already graded in --out (continue an interrupted grid).",
+        help=(
+            "Reuse cells already graded at this N in --out (continue an interrupted "
+            "grid). Cells left from a different N (e.g. a smoke) are re-run; use a "
+            "fresh --out for a different manifest."
+        ),
     )
     parser.add_argument("--executor", choices=["docker", "local"], default=None)
     parser.add_argument("-v", "--verbose", action="store_true")

@@ -108,6 +108,35 @@ def test_run_matrix_resume_skips_already_graded_cells(tmp_path: Path) -> None:
     assert result.deltas[0].comparison.pass_rate_delta.point == 1.0
 
 
+def test_run_matrix_resume_reruns_cell_with_mismatched_trial_count(
+    tmp_path: Path,
+) -> None:
+    runs: list[str] = []
+
+    def run_cell(config: Path, trials: int, out_dir: Path) -> Path:
+        runs.append(out_dir.name)
+        return out_dir
+
+    def load_scores(run_dir: Path) -> list[ScoreRecord]:
+        # A stale 1-trial cell left over from a smoke run; the grid wants N=2.
+        if run_dir.name == "m1__off":
+            return [_rec("a", True, 0)]
+        raise FileNotFoundError
+
+    io = MatrixIO(
+        run_cell=run_cell, grade=lambda d: _CANNED[d.name], load_scores=load_scores
+    )
+    cells = (Cell("m1", "off", Path("a")), Cell("m1", "L1", Path("a")))
+    result = run_matrix(
+        Manifest(trials=2, baseline_arm="off", cells=cells), tmp_path, io, resume=True
+    )
+
+    # The stale baseline is re-run (not reused), so the grid never mixes N=1 and N=2.
+    assert "m1__off" in runs
+    cached = {cr.cell.arm: cr.cached for cr in result.cells}
+    assert cached == {"off": False, "L1": False}
+
+
 def test_parse_manifest_resolves_configs_and_label(tmp_path: Path) -> None:
     data = {
         "trials": 5,
