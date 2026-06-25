@@ -4,9 +4,8 @@
 Reads a grid manifest (cells = {model, arm, config}; a baseline arm per model), runs
 each cell once over N trials into ``results/matrix-<ts>/<cell>/``, grades it, and prints
 a pass-rate-CI table plus each skill arm's bootstrapped delta against its model's
-baseline. Writes ``matrix.json`` for provenance and later figures. Reuses
-``execute_run`` (run_slice) and ``grade_run``/``load_scores`` (evaluation.runs) via the
-injected ``MatrixIO`` seam.
+baseline. Writes ``matrix.json`` for provenance and later figures. The run/grade/load
+wiring comes from ``default_matrix_io`` (the library runner + ``evaluation.runs``).
 
 Usage:
     python scripts/run_matrix.py configs/experiments/disclosure_grid.yaml
@@ -24,15 +23,14 @@ import logging
 from pathlib import Path
 import sys
 
+from _paths import RESULTS_DIR
 from dotenv import load_dotenv
-from run_slice import RESULTS_DIR, execute_run
 import yaml
 
-from statskills.evaluation.runs import grade_run, load_scores
 from statskills.evaluation.trials import CI
 from statskills.experiments import (
-    MatrixIO,
     MatrixResult,
+    default_matrix_io,
     parse_manifest,
     run_matrix,
 )
@@ -165,12 +163,7 @@ def main() -> int:
         "matrix-%Y%m%dT%H%M%SZ"
     )
 
-    def run_cell(config: Path, trials: int, cell_dir: Path) -> Path:
-        return execute_run(
-            config, executor=args.executor, trials=trials, out_dir=cell_dir
-        )
-
-    io = MatrixIO(run_cell=run_cell, grade=grade_run, load_scores=load_scores)
+    io = default_matrix_io(executor=args.executor)
     try:
         result = run_matrix(manifest, out_dir, io, resume=args.resume)
     except (ValueError, DockerError) as exc:
