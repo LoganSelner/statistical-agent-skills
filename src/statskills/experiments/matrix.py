@@ -7,8 +7,10 @@ arm with a bootstrapped pass-rate-delta CI (ROADMAP §5, §8). Running each base
 and reusing it for every arm of the same model is the point: it keeps the deltas honest
 (re-running the baseline per arm would compare against a different draw).
 
-Pure orchestration: the side-effecting operations are injected via :class:`MatrixIO`, so
-this module depends only on the evaluation library and is testable with fakes.
+Pure runner: :func:`run_matrix` performs no I/O itself — the side-effecting operations
+are injected via :class:`MatrixIO`, so it is testable with fakes.
+:func:`default_matrix_io` provides the production wiring (the library runner + grading),
+lazily imported so that importing this module stays light.
 """
 
 from __future__ import annotations
@@ -82,14 +84,13 @@ class MatrixResult:
 class MatrixIO:
     """The side-effecting operations the runner depends on (injected for testing).
 
-    ``run_cell`` executes one config over N trials into the given directory and returns
+    ``run_cell`` executes one cell over N trials into the given directory and returns
     the run directory; ``grade`` scores a run directory; ``load_scores`` reads an
-    already-graded one (for resume). In production these are ``execute_run`` (wrapped to
-    pass ``out_dir``), :func:`statskills.evaluation.runs.grade_run`, and
-    :func:`statskills.evaluation.runs.load_scores`.
+    already-graded one (for resume). :func:`default_matrix_io` wires the production
+    implementations (the library runner + :mod:`statskills.evaluation.runs`).
     """
 
-    run_cell: Callable[[Path, int, Path], Path]
+    run_cell: Callable[[Cell, int, Path], Path]
     grade: Callable[[Path], list[ScoreRecord]]
     load_scores: Callable[[Path], list[ScoreRecord]]
 
@@ -178,7 +179,7 @@ def run_matrix(
         if cached_records is not None:
             records, run_dir, cached = cached_records, cell_dir, True
         else:
-            run_dir = io.run_cell(cell.config, manifest.trials, cell_dir)
+            run_dir = io.run_cell(cell, manifest.trials, cell_dir)
             records, cached = io.grade(run_dir), False
         records_by_cell[(cell.model, cell.arm)] = records
         cell_results.append(
@@ -230,3 +231,21 @@ def _resume_cell(
         )
         return None
     return records
+
+
+def default_matrix_io(*, executor: str | None = None) -> MatrixIO:
+    """The production wiring: run cells via the library runner, grade/load via ``runs``.
+
+    Imported lazily so that importing this module for :func:`run_matrix` /
+    :func:`parse_manifest` (tests inject a fake ``MatrixIO``) does not pull the run
+    stack.
+    """
+    from statskills.evaluation.runs import grade_run, load_scores
+    from statskills.experiments.runner import execute_run
+
+    def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
+        return execute_run(
+            cell.config, out_dir=out_dir, trials=trials, executor=executor
+        )
+
+    return MatrixIO(run_cell=run_cell, grade=grade_run, load_scores=load_scores)

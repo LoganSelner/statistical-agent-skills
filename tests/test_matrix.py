@@ -52,7 +52,7 @@ def test_run_matrix_runs_each_cell_once_and_deltas_vs_model_baseline(
 ) -> None:
     runs: list[str] = []
 
-    def run_cell(config: Path, trials: int, out_dir: Path) -> Path:
+    def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
         runs.append(out_dir.name)
         return out_dir
 
@@ -85,7 +85,7 @@ def test_run_matrix_runs_each_cell_once_and_deltas_vs_model_baseline(
 def test_run_matrix_resume_skips_already_graded_cells(tmp_path: Path) -> None:
     runs: list[str] = []
 
-    def run_cell(config: Path, trials: int, out_dir: Path) -> Path:
+    def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
         runs.append(out_dir.name)
         return out_dir
 
@@ -113,7 +113,7 @@ def test_run_matrix_resume_reruns_cell_with_mismatched_trial_count(
 ) -> None:
     runs: list[str] = []
 
-    def run_cell(config: Path, trials: int, out_dir: Path) -> Path:
+    def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
         runs.append(out_dir.name)
         return out_dir
 

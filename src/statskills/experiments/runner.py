@@ -1,48 +1,40 @@
-#!/usr/bin/env python3
-"""Run a config end-to-end (N trials x tasks) and write trajectories + provenance.
+"""Run orchestration — execute a config over N trials x tasks (ROADMAP §6, §9).
 
-Loads the configured task set, runs the single-agent CodeAct loop over the sandbox
-(Docker by default) once per (trial, task), and writes a trajectories JSONL — appended
-incrementally so a long multi-trial run survives an interruption with a still-gradeable
-partial dir — plus a run.json with provenance. Model access is EdenAI (set
-EDENAI_API_KEY) or a local Ollama server. ``execute_run`` is reused by
-``scripts/run_experiment.py``.
+This is the central run policy: build the LLM, sandbox, and agent from a config, run
+the single-agent CodeAct loop once per (trial, task), and write a trajectories JSONL
+(appended incrementally so a long run survives interruption with a still-gradeable
+partial dir) plus a ``run.json`` with provenance. It lives in the library — not a
+script — so the matrix runner can call it directly and it is testable; the thin CLIs
+(``scripts/run.py``, ``scripts/run_matrix.py``) are adapters that own path/dotenv
+policy and call inward.
 
-Usage:
-    python scripts/run_slice.py                                  # default config
-    python scripts/run_slice.py --config configs/trap_ollama.yaml --trials 10
-    python scripts/run_slice.py --executor local --model openai/gpt-4o
+:func:`execute_run_config` takes an already-loaded config dict (and optional injected
+``llm``/``sandbox`` for tests); :func:`execute_run` loads a config file then calls it.
+``out_dir`` is required — callers own where results land.
 """
 
 from __future__ import annotations
 
-import argparse
+from collections.abc import Mapping
 from dataclasses import asdict
 from datetime import UTC, datetime
 import json
 import logging
 from pathlib import Path
-import sys
 from typing import Any
 
-from dotenv import load_dotenv
-
-from statskills.agent.llm import build_llm, resolve_llm_config
+from statskills.agent.llm import LLM, build_llm, resolve_llm_config
 from statskills.agent.loop import ReActAgent
 from statskills.core.config import load_yaml_with_inheritance
 from statskills.core.provenance import RunProvenance
 from statskills.sandbox.base import Executor
-from statskills.sandbox.docker import DockerError, DockerExecutor
+from statskills.sandbox.docker import DEFAULT_IMAGE, DockerExecutor
 from statskills.sandbox.local import LocalExecutor
 from statskills.skills import SkillContext, build_skill_context
 from statskills.tasks.loader import load_tasks
 from statskills.tasks.schema import Task
 
-logger = logging.getLogger("statskills.run")
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = REPO_ROOT / "configs" / "slice.yaml"
-RESULTS_DIR = REPO_ROOT / "results"
+logger = logging.getLogger(__name__)
 
 
 def _build_executor(
@@ -95,32 +87,35 @@ def _print_record(task: Task, record: dict[str, Any]) -> None:
     )
 
 
-def execute_run(
-    config_path: Path,
+def execute_run_config(
+    cfg: Mapping[str, Any],
     *,
+    out_dir: Path,
     executor: str | None = None,
     provider: str | None = None,
     model: str | None = None,
     max_steps: int | None = None,
     trials: int | None = None,
-    out_dir: Path | None = None,
+    llm: LLM | None = None,
+    sandbox: Executor | None = None,
 ) -> Path:
-    """Run a config over N trials x tasks; return the results directory.
+    """Run an already-loaded config over N trials x tasks into ``out_dir``.
 
-    ``out_dir`` overrides the default ``results/run-<ts>`` location (the matrix runner
-    uses it to place each cell in a stable per-cell directory). Build problems (missing
-    key / sandbox) raise ValueError / DockerError.
+    ``llm`` / ``sandbox`` may be injected (tests); otherwise they are built from the
+    config. Build problems (missing key / sandbox) raise ValueError / DockerError.
     """
-    cfg: dict[str, Any] = load_yaml_with_inheritance(config_path)
     llm_config = resolve_llm_config(cfg.get("llm"), provider=provider, model=model)
     n_trials = trials if trials is not None else int(cfg.get("trials", 1))
     steps = max_steps if max_steps is not None else int(cfg.get("max_steps", 10))
     executor_kind = executor or str(cfg.get("executor", "docker"))
-    image = str(cfg.get("sandbox_image", "statskills-sandbox:0.1.0"))
+    image = str(cfg.get("sandbox_image", DEFAULT_IMAGE))
     timeout = float(cfg.get("timeout", 60))
 
-    llm = build_llm(llm_config)
-    sandbox, image_digest = _build_executor(executor_kind, image, timeout)
+    llm = llm or build_llm(llm_config)
+    if sandbox is None:
+        sandbox, image_digest = _build_executor(executor_kind, image, timeout)
+    else:
+        image_digest = None
     agent = ReActAgent(llm, sandbox, max_steps=steps)
 
     tasks_spec = dict(cfg.get("tasks") or {"set": "authored"})
@@ -129,7 +124,6 @@ def execute_run(
     skills_mode = "off" if skill_ctx is None else "curated"
 
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    out_dir = out_dir if out_dir is not None else RESULTS_DIR / f"run-{run_id}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     skills_block = cfg.get("skills") or {}
@@ -180,54 +174,28 @@ def execute_run(
                 handle.flush()
                 _print_record(task, record)
 
-    print(f"\nWrote {out_dir}\nGrade it: uv run python scripts/grade.py {out_dir}\n")
+    print(f"\nWrote {out_dir}")
     return out_dir
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Run a config over N trials x tasks.")
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument(
-        "--executor",
-        choices=["docker", "local"],
-        default=None,
-        help="Override the configured executor. 'local' is UNSANDBOXED (trusted only).",
+def execute_run(
+    config_path: Path,
+    *,
+    out_dir: Path,
+    executor: str | None = None,
+    provider: str | None = None,
+    model: str | None = None,
+    max_steps: int | None = None,
+    trials: int | None = None,
+) -> Path:
+    """Load a config file (resolving ``extends:``) and run it into ``out_dir``."""
+    cfg: dict[str, Any] = load_yaml_with_inheritance(config_path)
+    return execute_run_config(
+        cfg,
+        out_dir=out_dir,
+        executor=executor,
+        provider=provider,
+        model=model,
+        max_steps=max_steps,
+        trials=trials,
     )
-    parser.add_argument("--provider", choices=["edenai", "ollama"], default=None)
-    parser.add_argument("--model", default=None, help="Override the provider/model id.")
-    parser.add_argument("--max-steps", type=int, default=None)
-    parser.add_argument(
-        "--trials",
-        type=int,
-        default=None,
-        help="Repeats per task (default: config or 1).",
-    )
-    parser.add_argument("-v", "--verbose", action="store_true")
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)s %(message)s",
-        datefmt="%H:%M:%S",
-    )
-    load_dotenv(REPO_ROOT / ".env")
-    try:
-        execute_run(
-            args.config,
-            executor=args.executor,
-            provider=args.provider,
-            model=args.model,
-            max_steps=args.max_steps,
-            trials=args.trials,
-        )
-    except ValueError as exc:
-        logger.error("%s", exc)
-        return 1
-    except DockerError as exc:
-        logger.error("Sandbox unavailable: %s", exc)
-        return 1
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

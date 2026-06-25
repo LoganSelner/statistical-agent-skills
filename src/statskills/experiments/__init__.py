@@ -15,6 +15,7 @@ from statskills.experiments.matrix import (
     Manifest,
     MatrixIO,
     MatrixResult,
+    default_matrix_io,
     parse_manifest,
     run_matrix,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "Manifest",
     "MatrixIO",
     "MatrixResult",
+    "default_matrix_io",
     "parse_manifest",
     "run_matrix",
 ]
