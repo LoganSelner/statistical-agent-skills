@@ -6,15 +6,18 @@
 #   python scripts/gen_authored_data.py            # generate the trap CSVs first
 #   python scripts/run_matrix.py configs/experiments/disclosure_grid.yaml
 #
-# This is a run manifest, not a component config (no `extends`). Each cell's `config` is
-# resolved relative to this file's directory. NOTE: the arm "off" must be quoted — a bare
-# `off` is a YAML 1.1 boolean (the runner rejects an unquoted one with a clear error).
+# A run manifest (no `extends`): each cell is a model base config + an `arm` whose skills
+# overlay is defined once under `arms`. NOTE: quote "off" — a bare off is a YAML 1.1 bool.
 trials: 5
 baseline_arm: "off"
+arms:
+  "off": {}
+  L1: { mode: curated, resolution: L1, router: forced, library: statistics }
+  L2: { mode: curated, resolution: L2, router: forced, library: statistics }
 cells:
-  - { model: "qwen2.5-coder:7b",  arm: "off", config: trap_7b.yaml }
-  - { model: "qwen2.5-coder:7b",  arm: "L1",  config: trap_7b_l1.yaml }
-  - { model: "qwen2.5-coder:7b",  arm: "L2",  config: trap_7b_l2.yaml }
-  - { model: "qwen2.5-coder:14b", arm: "off", config: trap_14b.yaml }
-  - { model: "qwen2.5-coder:14b", arm: "L1",  config: trap_14b_l1.yaml }
-  - { model: "qwen2.5-coder:14b", arm: "L2",  config: trap_14b_l2.yaml }
+  - { model: "qwen2.5-coder:7b",  config: trap_7b.yaml,  arm: "off" }
+  - { model: "qwen2.5-coder:7b",  config: trap_7b.yaml,  arm: "L1" }
+  - { model: "qwen2.5-coder:7b",  config: trap_7b.yaml,  arm: "L2" }
+  - { model: "qwen2.5-coder:14b", config: trap_14b.yaml, arm: "off" }
+  - { model: "qwen2.5-coder:14b", config: trap_14b.yaml, arm: "L1" }
+  - { model: "qwen2.5-coder:14b", config: trap_14b.yaml, arm: "L2" }

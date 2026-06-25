@@ -17,11 +17,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import logging
 from pathlib import Path
 from typing import Any
 
+from statskills.core.config import load_yaml_with_inheritance
 from statskills.evaluation.compare import TrialComparison, compare_trials
 from statskills.evaluation.results import ScoreRecord
 from statskills.evaluation.trials import TrialSummary, summarize_trials
@@ -31,11 +32,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Cell:
-    """One grid cell: a ``(model, arm)`` condition backed by a config file."""
+    """One grid cell: a ``(model, arm)`` condition.
+
+    ``config`` is the model base config; ``skills`` is the arm's overlay (the ``skills``
+    block from the manifest's ``arms`` map, empty for the no-skills baseline). The
+    effective config is the base with ``skills`` applied (:func:`compose_cell_config`).
+    """
 
     model: str
     arm: str
     config: Path
+    skills: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def label(self) -> str:
@@ -112,14 +119,23 @@ def _require_str(value: object, field: str) -> str:
 def parse_manifest(data: Mapping[str, Any], *, base_dir: Path) -> Manifest:
     """Parse a grid manifest mapping into a validated :class:`Manifest`.
 
-    ``config`` paths are resolved relative to ``base_dir`` (the manifest's directory).
-    Validates that every model has exactly one baseline-arm cell and no duplicate arms.
+    A manifest defines the skill overlays once in an ``arms`` map and lists ``cells`` as
+    ``{model, config, arm}``, where ``config`` is the model base and ``arm`` selects an
+    overlay. ``config`` paths resolve relative to ``base_dir`` (the manifest's dir).
+    Validates that each arm is defined, every model has its baseline arm, and no model
+    repeats an arm.
     """
     raw_cells = data.get("cells")
     if not raw_cells:
         raise ValueError("Manifest has no 'cells'.")
     baseline_arm = _require_str(data.get("baseline_arm", "off"), "baseline_arm")
     trials = int(data.get("trials", 1))
+    raw_arms = data.get("arms") or {}
+    if not isinstance(raw_arms, Mapping):
+        raise ValueError("Manifest 'arms' must map arm names to skills blocks.")
+    # Arm names are strings; coerce keys through the same guard as arm values so an
+    # unquoted ``off``/``on`` map key (a YAML 1.1 boolean) fails with a clear message.
+    arms = {_require_str(k, "arms key"): v for k, v in raw_arms.items()}
 
     cells: list[Cell] = []
     for i, entry in enumerate(raw_cells):
@@ -128,11 +144,39 @@ def parse_manifest(data: Mapping[str, Any], *, base_dir: Path) -> Manifest:
         config = entry.get("config")
         if not config:
             raise ValueError(f"cells[{i}] has no 'config'.")
-        cells.append(Cell(model=model, arm=arm, config=(base_dir / config).resolve()))
+        if arm not in arms:
+            raise ValueError(
+                f"cells[{i}] uses arm {arm!r} not defined in manifest 'arms' "
+                f"({sorted(arms)})."
+            )
+        overlay = arms[arm] or {}
+        if not isinstance(overlay, Mapping):
+            raise ValueError(f"arm {arm!r} must map to a skills block, got {overlay!r}")
+        cells.append(
+            Cell(
+                model=model,
+                arm=arm,
+                config=(base_dir / config).resolve(),
+                skills=dict(overlay),
+            )
+        )
 
     manifest = Manifest(trials=trials, baseline_arm=baseline_arm, cells=tuple(cells))
     _validate(manifest)
     return manifest
+
+
+def compose_cell_config(cell: Cell) -> dict[str, Any]:
+    """The effective config for a cell: its model base with the arm skills overlay.
+
+    Loads the base config (resolving ``extends:``) and sets ``skills`` to the arm's
+    overlay when non-empty (the baseline arm leaves the base unchanged). Bases carry no
+    ``skills`` block, so a shallow set is exact.
+    """
+    cfg: dict[str, Any] = dict(load_yaml_with_inheritance(cell.config))
+    if cell.skills:
+        cfg["skills"] = dict(cell.skills)
+    return cfg
 
 
 def _validate(manifest: Manifest) -> None:
@@ -241,11 +285,14 @@ def default_matrix_io(*, executor: str | None = None) -> MatrixIO:
     stack.
     """
     from statskills.evaluation.runs import grade_run, load_scores
-    from statskills.experiments.runner import execute_run
+    from statskills.experiments.runner import execute_run_config
 
     def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
-        return execute_run(
-            cell.config, out_dir=out_dir, trials=trials, executor=executor
+        return execute_run_config(
+            compose_cell_config(cell),
+            out_dir=out_dir,
+            trials=trials,
+            executor=executor,
         )
 
     return MatrixIO(run_cell=run_cell, grade=grade_run, load_scores=load_scores)

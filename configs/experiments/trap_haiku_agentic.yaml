@@ -1,9 +1,0 @@
-# Haiku + curated skills via AGENT-ACTIVATED delivery at L1 (skills as sandbox files
-# the agent reads on demand). Same skill content as trap_haiku_l1; only delivery differs.
-extends: trap_haiku.yaml
-skills:
-  mode: curated
-  delivery: agentic
-  resolution: L1
-  router: forced
-  library: statistics
