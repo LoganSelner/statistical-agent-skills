@@ -1,6 +1,6 @@
 """Run-artifact I/O — read, grade, and load a results run directory (ROADMAP §3, §8).
 
-A run directory written by ``scripts/run_slice.py`` holds ``trajectories.jsonl`` (the
+A run directory written by ``scripts/run.py`` holds ``trajectories.jsonl`` (the
 agent's saved runs), ``run.json`` (provenance, including the task set), and — after
 grading — ``scores.jsonl``. This module centralises that on-disk contract so the grading
 CLI, the comparison CLI, and the experiment matrix all read it the same way. Grading is

@@ -74,7 +74,7 @@ To run fully locally with Ollama (no credits needed):
 
 ```bash
 ollama pull qwen2.5-coder:7b
-uv run python scripts/run_slice.py --config configs/slice_ollama.yaml
+uv run python scripts/run.py --config configs/slice_ollama.yaml
 ```
 
 For long unattended runs (e.g. the multi-trial experiments), set these on the Ollama host
@@ -92,17 +92,13 @@ generation fails fast instead of hanging.
 
 ## Experiments
 
-A single **skills-off vs curated** pair over N trials, with a bootstrapped pass-rate
-delta CI:
+A single config runs via `scripts/run.py --config <cfg>` (writes `results/run-<ts>/`).
 
-```bash
-uv run python scripts/run_experiment.py \
-    --off configs/trap_ollama.yaml --skills configs/trap_ollama_skills.yaml --trials 10
-```
-
-A **condition-matrix grid** sweeps several cells at once — e.g. the Phase-5 diagnostic
-`{7B, 14B} × {off, L1, L2}` on the authored trap arm. Each `(model, arm)` cell runs once
-over N trials; each skill arm is compared to its own model's single baseline:
+Experiments run through the **condition-matrix runner**: a manifest enumerates
+`(model, arm)` cells, each run once over N trials, and each skill arm is compared to its
+own model's single baseline with a bootstrapped pass-rate delta CI. The simplest case is
+a 2-cell off-vs-curated pair; the Phase-5 diagnostic sweeps `{7B, 14B} × {off, L1, L2}`
+on the authored trap arm:
 
 ```bash
 uv run python scripts/gen_authored_data.py            # generate the trap CSVs first
@@ -134,7 +130,7 @@ src/statskills/
   experiments/       # condition-matrix runner (model × disclosure grid)
 configs/             # YAML configs (extends: inheritance); experiments/ = grid cells
 data/authored/       # small bundled datasets for the authored tasks
-scripts/             # run_slice, run_experiment, run_matrix, grade, compare CLIs
+scripts/             # run, run_matrix, grade, compare CLIs (thin adapters)
 tests/               # pytest suite
 ROADMAP.md           # research framing + architecture + phased plan
 ```
