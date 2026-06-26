@@ -149,9 +149,14 @@ def parse_manifest(data: Mapping[str, Any], *, base_dir: Path) -> Manifest:
                 f"cells[{i}] uses arm {arm!r} not defined in manifest 'arms' "
                 f"({sorted(arms)})."
             )
-        overlay = arms[arm] or {}
+        overlay = arms[arm]
         if not isinstance(overlay, Mapping):
-            raise ValueError(f"arm {arm!r} must map to a skills block, got {overlay!r}")
+            # Reject a falsy non-mapping (``L1:`` -> None, ``L1: false``, ``L1: []``) so
+            # a mistyped treatment arm fails loudly instead of running as no-skills.
+            raise ValueError(
+                f"arm {arm!r} must map to a skills block (use {{}} for no skills), "
+                f"got {overlay!r}"
+            )
         cells.append(
             Cell(
                 model=model,
@@ -169,13 +174,13 @@ def parse_manifest(data: Mapping[str, Any], *, base_dir: Path) -> Manifest:
 def compose_cell_config(cell: Cell) -> dict[str, Any]:
     """The effective config for a cell: its model base with the arm skills overlay.
 
-    Loads the base config (resolving ``extends:``) and sets ``skills`` to the arm's
-    overlay when non-empty (the baseline arm leaves the base unchanged). Bases carry no
-    ``skills`` block, so a shallow set is exact.
+    Loads the base config (resolving ``extends:``) and sets ``skills`` to the arm
+    overlay **unconditionally** — the manifest's arm map is authoritative, so an empty
+    (baseline) arm clears any ``skills`` block the base carries or inherits rather than
+    letting it leak into the baseline. An empty mapping resolves to no skills (off).
     """
     cfg: dict[str, Any] = dict(load_yaml_with_inheritance(cell.config))
-    if cell.skills:
-        cfg["skills"] = dict(cell.skills)
+    cfg["skills"] = dict(cell.skills)
     return cfg
 
 

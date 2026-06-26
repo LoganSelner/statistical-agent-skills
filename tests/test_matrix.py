@@ -209,15 +209,36 @@ def test_parse_manifest_rejects_duplicate_arm(tmp_path: Path) -> None:
         parse_manifest(data, base_dir=tmp_path)
 
 
+def test_parse_manifest_rejects_non_mapping_arm(tmp_path: Path) -> None:
+    # A falsy non-mapping arm value (`L1:` -> None, `L1: []`) must fail, not silently
+    # become a no-skills arm (which would report a spurious zero effect).
+    data = {
+        "baseline_arm": "off",
+        "arms": {"off": {}, "L1": []},
+        "cells": [{"model": "m", "arm": "L1", "config": "a"}],
+    }
+    with pytest.raises(ValueError, match="must map to a skills block"):
+        parse_manifest(data, base_dir=tmp_path)
+
+
 def test_compose_cell_config_applies_arm_overlay(tmp_path: Path) -> None:
     base = tmp_path / "base.yaml"
     base.write_text("llm:\n  provider: ollama\n  model: x\ntasks:\n  set: authored\n")
 
-    # Baseline arm: no overlay → the base config is unchanged (no skills block).
-    assert "skills" not in compose_cell_config(Cell("m", "off", base, skills={}))
+    # Baseline arm: the overlay is empty → skills resolve to off (empty mapping).
+    assert compose_cell_config(Cell("m", "off", base, skills={}))["skills"] == {}
 
     # Skill arm: the overlay becomes the skills block; base keys are preserved.
     overlay = {"mode": "curated", "delivery": "injected", "resolution": "L1"}
     cfg = compose_cell_config(Cell("m", "L1", base, skills=overlay))
     assert cfg["skills"] == overlay
     assert cfg["llm"] == {"provider": "ollama", "model": "x"}
+
+
+def test_compose_cell_config_empty_arm_clears_inherited_skills(tmp_path: Path) -> None:
+    # The arm map is authoritative: an empty (baseline) arm must clear a skills block
+    # the base config carries, so the baseline is genuinely off.
+    base = tmp_path / "skills_base.yaml"
+    base.write_text("llm:\n  provider: ollama\n  model: x\nskills:\n  mode: curated\n")
+    cfg = compose_cell_config(Cell("m", "off", base, skills={}))
+    assert cfg["skills"] == {}  # not the base's curated block
