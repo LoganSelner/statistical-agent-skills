@@ -3,18 +3,17 @@
 An experiment harness investigating one question: **do curated agent skills improve an
 LLM's performance on inferential-statistics data-analysis tasks?**
 
-It drives a ReAct-style agent (model access via the **EdenAI** gateway) over data-analysis
-tasks inside a sandboxed Python kernel, under toggleable conditions — skills
-on / off / self-generated, skill disclosure level, task arm — and scores closed-form
-answers with deterministic verifiers. See **[ROADMAP.md](ROADMAP.md)** for the research
-framing, the layered architecture, and the phased build plan.
+It drives a CodeAct agent (model access via local **Ollama**, the native **Anthropic** SDK,
+or the EdenAI gateway) over data-analysis tasks inside a sandboxed Python kernel, under
+toggleable conditions — skills off / curated, delivery (injected vs agent-activated),
+disclosure level (L0–L3), task arm — and scores closed-form answers with deterministic
+verifiers, aggregating trials into bootstrapped condition deltas.
 
-> **Status: Phase 1 — vertical slice.** The harness runs end-to-end: a single-agent
-> ReAct loop with a CodeAct action protocol (harness-parsed Python, not provider
-> tool-calling) drives the EdenAI client over a stateful sandbox kernel (Docker default,
-> network-isolated), validated on five authored tasks. Skills and deterministic scoring
-> land in later phases; the project-agnostic `core/` (registry, `extends:` config
-> loading, provenance, retry) underpins it all.
+> **Status: harness complete; first result in (consolidation phase).** On **Claude Haiku 4.5**,
+> agent-activated ("agentic") skill delivery raises trap-arm pass rate **+12pp [+4, +20]** over
+> no-skills and beats injecting the same skills — while local coder models never invoke an offered
+> skill at all. See **[FINDINGS.md](FINDINGS.md)** for the results, **[ARCHITECTURE.md](ARCHITECTURE.md)**
+> for the system as built, and **[ROADMAP.md](ROADMAP.md)** for framing + next steps.
 
 ## Prerequisites
 
@@ -124,18 +123,24 @@ test whether faithful delivery changes whether the agent applies a skill.
 ```
 src/statskills/
   core/              # project-agnostic harness: registry, config, provenance, retry
-  agent/             # EdenAI client, CodeAct action parser, ReAct loop, trajectory
+  agent/             # LLM clients (OpenAI-compatible + native Anthropic), CodeAct loop
   sandbox/           # Executor interface + Docker (default) & local backends + image
   tasks/             # Task schema + authored slice/trap tasks + DABench adapter
-  skills/            # skill parser/loader (L0–L3), forced router, statistics library
-  evaluation/        # verifiers, metrics, N-trials CIs, run-artifact I/O (runs.py)
-  experiments/       # condition-matrix runner (model × disclosure grid)
-configs/             # YAML configs (extends: inheritance); experiments/ = grid cells
+  skills/            # parser/loader (L0–L3), forced router, delivery, statistics library
+  evaluation/        # verifiers, metrics, N-trials CIs, run-artifact I/O (stdlib-only)
+  experiments/       # run orchestrator (runner) + condition-matrix runner
+configs/             # YAML configs (extends: inheritance); experiments/ = grid manifests
 data/authored/       # small bundled datasets for the authored tasks
 scripts/             # run, run_matrix, grade, compare CLIs (thin adapters)
 tests/               # pytest suite
-ROADMAP.md           # research framing + architecture + phased plan
 ```
+
+## Documentation
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — the system as built (layers, design decisions, how to extend).
+- **[FINDINGS.md](FINDINGS.md)** — the experimental results + reproduction commands.
+- **[ROADMAP.md](ROADMAP.md)** — research framing, phase status, and next steps.
+- **[CLAUDE.md](CLAUDE.md)** — orientation + conventions for AI agents working in the repo.
 
 ## Development
 
