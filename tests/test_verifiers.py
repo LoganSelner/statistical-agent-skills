@@ -89,6 +89,16 @@ def test_categorical_tolerates_markdown_emphasis():
     assert not _score("Yesterday", yes).passed
 
 
+def test_categorical_preserves_literal_emphasis_characters():
+    # emphasis is unwrapped at the edges only — markers *inside* a label are kept, so a
+    # legitimate snake_case label matches and an internal marker is not silently removed
+    # (DABench routes every non-numeric label through `categorical`).
+    group_a = ExpectedAnswer.single("group_a", "categorical")
+    assert _score("group_a", group_a).passed
+    assert _score("**group_a**", group_a).passed  # bold wrapper ok, the "_" is kept
+    assert not _score("Y_es", ExpectedAnswer.single("Yes", "categorical")).passed
+
+
 def test_exact_is_case_sensitive():
     assert _score("South", ExpectedAnswer.single("South", "exact")).passed
     assert not _score("south", ExpectedAnswer.single("South", "exact")).passed
