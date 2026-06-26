@@ -11,6 +11,7 @@ from statskills.experiments import (
     Cell,
     Manifest,
     MatrixIO,
+    compose_cell_config,
     parse_manifest,
     run_matrix,
 )
@@ -137,10 +138,11 @@ def test_run_matrix_resume_reruns_cell_with_mismatched_trial_count(
     assert cached == {"off": False, "L1": False}
 
 
-def test_parse_manifest_resolves_configs_and_label(tmp_path: Path) -> None:
+def test_parse_manifest_resolves_configs_arms_and_label(tmp_path: Path) -> None:
     data = {
         "trials": 5,
         "baseline_arm": "off",
+        "arms": {"off": {}, "L1": {"mode": "curated", "resolution": "L1"}},
         "cells": [
             {"model": "m", "arm": "off", "config": "a.yaml"},
             {"model": "m", "arm": "L1", "config": "sub/b.yaml"},
@@ -151,6 +153,30 @@ def test_parse_manifest_resolves_configs_and_label(tmp_path: Path) -> None:
     assert manifest.cells[0].config == (tmp_path / "a.yaml").resolve()
     assert manifest.cells[1].config == (tmp_path / "sub" / "b.yaml").resolve()
     assert manifest.cells[0].label == "m__off"
+    # The arm's overlay from the shared `arms` map is attached to the cell.
+    assert manifest.cells[0].skills == {}
+    assert manifest.cells[1].skills == {"mode": "curated", "resolution": "L1"}
+
+
+def test_parse_manifest_rejects_unknown_arm(tmp_path: Path) -> None:
+    data = {
+        "baseline_arm": "off",
+        "arms": {"off": {}},
+        "cells": [{"model": "m", "arm": "L9", "config": "b"}],
+    }
+    with pytest.raises(ValueError, match="not defined in manifest 'arms'"):
+        parse_manifest(data, base_dir=tmp_path)
+
+
+def test_parse_manifest_rejects_yaml_bool_arms_key(tmp_path: Path) -> None:
+    # An unquoted `off:` key in the arms map is a YAML 1.1 bool — caught with the hint.
+    data = {
+        "baseline_arm": "off",
+        "arms": {False: {}},
+        "cells": [{"model": "m", "arm": "off", "config": "a"}],
+    }
+    with pytest.raises(ValueError, match="arms key"):
+        parse_manifest(data, base_dir=tmp_path)
 
 
 def test_parse_manifest_rejects_yaml_bool_arm(tmp_path: Path) -> None:
@@ -163,6 +189,7 @@ def test_parse_manifest_rejects_yaml_bool_arm(tmp_path: Path) -> None:
 def test_parse_manifest_requires_baseline_arm_per_model(tmp_path: Path) -> None:
     data = {
         "baseline_arm": "off",
+        "arms": {"L1": {}},
         "cells": [{"model": "m", "arm": "L1", "config": "a"}],
     }
     with pytest.raises(ValueError, match="no baseline arm"):
@@ -172,6 +199,7 @@ def test_parse_manifest_requires_baseline_arm_per_model(tmp_path: Path) -> None:
 def test_parse_manifest_rejects_duplicate_arm(tmp_path: Path) -> None:
     data = {
         "baseline_arm": "off",
+        "arms": {"off": {}},
         "cells": [
             {"model": "m", "arm": "off", "config": "a"},
             {"model": "m", "arm": "off", "config": "b"},
@@ -179,3 +207,38 @@ def test_parse_manifest_rejects_duplicate_arm(tmp_path: Path) -> None:
     }
     with pytest.raises(ValueError, match="duplicate arm"):
         parse_manifest(data, base_dir=tmp_path)
+
+
+def test_parse_manifest_rejects_non_mapping_arm(tmp_path: Path) -> None:
+    # A falsy non-mapping arm value (`L1:` -> None, `L1: []`) must fail, not silently
+    # become a no-skills arm (which would report a spurious zero effect).
+    data = {
+        "baseline_arm": "off",
+        "arms": {"off": {}, "L1": []},
+        "cells": [{"model": "m", "arm": "L1", "config": "a"}],
+    }
+    with pytest.raises(ValueError, match="must map to a skills block"):
+        parse_manifest(data, base_dir=tmp_path)
+
+
+def test_compose_cell_config_applies_arm_overlay(tmp_path: Path) -> None:
+    base = tmp_path / "base.yaml"
+    base.write_text("llm:\n  provider: ollama\n  model: x\ntasks:\n  set: authored\n")
+
+    # Baseline arm: the overlay is empty → skills resolve to off (empty mapping).
+    assert compose_cell_config(Cell("m", "off", base, skills={}))["skills"] == {}
+
+    # Skill arm: the overlay becomes the skills block; base keys are preserved.
+    overlay = {"mode": "curated", "delivery": "injected", "resolution": "L1"}
+    cfg = compose_cell_config(Cell("m", "L1", base, skills=overlay))
+    assert cfg["skills"] == overlay
+    assert cfg["llm"] == {"provider": "ollama", "model": "x"}
+
+
+def test_compose_cell_config_empty_arm_clears_inherited_skills(tmp_path: Path) -> None:
+    # The arm map is authoritative: an empty (baseline) arm must clear a skills block
+    # the base config carries, so the baseline is genuinely off.
+    base = tmp_path / "skills_base.yaml"
+    base.write_text("llm:\n  provider: ollama\n  model: x\nskills:\n  mode: curated\n")
+    cfg = compose_cell_config(Cell("m", "off", base, skills={}))
+    assert cfg["skills"] == {}  # not the base's curated block

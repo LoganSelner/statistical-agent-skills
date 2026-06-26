@@ -3,11 +3,16 @@
 # Needs ANTHROPIC_API_KEY + Docker. Cost: a few dollars at N=5 (Haiku is $1/$5 per MTok).
 #   python scripts/gen_authored_data.py            # generate the trap CSVs first
 #   python scripts/run_matrix.py configs/experiments/haiku_grid.yaml
-# A run manifest, not a component config (no `extends`). Quote "off" (bare off is a
-# YAML 1.1 boolean).
+#
+# A run manifest (no `extends`): cells are the Haiku base + an `arm` whose skills overlay
+# is defined once under `arms`. Quote "off" (a bare off is a YAML 1.1 boolean).
 trials: 5
 baseline_arm: "off"
+arms:
+  "off": {}
+  L1: { mode: curated, resolution: L1, router: forced, library: statistics }
+  agentic: { mode: curated, delivery: agentic, resolution: L1, router: forced, library: statistics }
 cells:
-  - { model: "claude-haiku-4-5", arm: "off",     config: trap_haiku.yaml }
-  - { model: "claude-haiku-4-5", arm: "L1",      config: trap_haiku_l1.yaml }
-  - { model: "claude-haiku-4-5", arm: "agentic", config: trap_haiku_agentic.yaml }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: "off" }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: "L1" }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: "agentic" }

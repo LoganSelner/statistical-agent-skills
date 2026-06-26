@@ -1,8 +1,0 @@
-# Haiku + curated skills via INJECTED delivery at L1 (bodies in the system prompt).
-extends: trap_haiku.yaml
-skills:
-  mode: curated
-  delivery: injected
-  resolution: L1
-  router: forced
-  library: statistics

@@ -7,14 +7,18 @@
 #   python scripts/gen_authored_data.py            # generate the trap CSVs first
 #   python scripts/run_matrix.py configs/experiments/engagement_grid.yaml
 #
-# A run manifest, not a component config (no `extends`). The arm "off" must be quoted (a
-# bare off is a YAML 1.1 boolean).
+# A run manifest (no `extends`): each cell is a model base + an `arm` whose skills overlay
+# is defined once under `arms`. Quote "off" (a bare off is a YAML 1.1 boolean).
 trials: 5
 baseline_arm: "off"
+arms:
+  "off": {}
+  L1: { mode: curated, resolution: L1, router: forced, library: statistics }
+  agentic: { mode: curated, delivery: agentic, resolution: L1, router: forced, library: statistics }
 cells:
-  - { model: "qwen2.5-coder:7b",  arm: "off",     config: trap_7b.yaml }
-  - { model: "qwen2.5-coder:7b",  arm: "L1",      config: trap_7b_l1.yaml }
-  - { model: "qwen2.5-coder:7b",  arm: "agentic", config: trap_7b_agentic.yaml }
-  - { model: "qwen2.5-coder:14b", arm: "off",     config: trap_14b.yaml }
-  - { model: "qwen2.5-coder:14b", arm: "L1",      config: trap_14b_l1.yaml }
-  - { model: "qwen2.5-coder:14b", arm: "agentic", config: trap_14b_agentic.yaml }
+  - { model: "qwen2.5-coder:7b",  config: trap_7b.yaml,  arm: "off" }
+  - { model: "qwen2.5-coder:7b",  config: trap_7b.yaml,  arm: "L1" }
+  - { model: "qwen2.5-coder:7b",  config: trap_7b.yaml,  arm: "agentic" }
+  - { model: "qwen2.5-coder:14b", config: trap_14b.yaml, arm: "off" }
+  - { model: "qwen2.5-coder:14b", config: trap_14b.yaml, arm: "L1" }
+  - { model: "qwen2.5-coder:14b", config: trap_14b.yaml, arm: "agentic" }

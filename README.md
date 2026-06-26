@@ -94,11 +94,13 @@ generation fails fast instead of hanging.
 
 A single config runs via `scripts/run.py --config <cfg>` (writes `results/run-<ts>/`).
 
-Experiments run through the **condition-matrix runner**: a manifest enumerates
-`(model, arm)` cells, each run once over N trials, and each skill arm is compared to its
-own model's single baseline with a bootstrapped pass-rate delta CI. The simplest case is
-a 2-cell off-vs-curated pair; the Phase-5 diagnostic sweeps `{7B, 14B} × {off, L1, L2}`
-on the authored trap arm:
+Experiments run through the **condition-matrix runner**. A manifest defines the skill
+overlays once in an `arms` map and lists `cells` as `{model, config, arm}` — `config` is
+a reusable model base, `arm` selects an overlay — so a grid is one self-contained file,
+not a model×arm cross-product of configs. Each cell runs once over N trials, and each
+skill arm is compared to its own model's single baseline with a bootstrapped pass-rate
+delta CI. The simplest case is a 2-cell off-vs-curated pair; the Phase-5 diagnostic
+sweeps `{7B, 14B} × {off, L1, L2}` on the authored trap arm:
 
 ```bash
 uv run python scripts/gen_authored_data.py            # generate the trap CSVs first
