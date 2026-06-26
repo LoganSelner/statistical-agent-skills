@@ -59,6 +59,15 @@ def _norm(value: object) -> str:
     return " ".join(str(value).strip().split())
 
 
+_MD_EMPHASIS = re.compile(r"[*_`]+")
+
+
+def _strip_md(text: str) -> str:
+    """Remove Markdown emphasis (``*``/``_``/`` ` ``) so a model that bolds its answer
+    (frontier models routinely emit ``**Yes**``) still matches the category."""
+    return _MD_EMPHASIS.sub("", text)
+
+
 def _to_set(value: object) -> set[str]:
     items = (
         [str(v) for v in value]
@@ -91,13 +100,14 @@ def _categorical(submitted: str, key: AnswerKey) -> tuple[bool, str]:
     every non-numeric label through here), nor ``No`` by ``Not significant``.
     """
     want = _norm(key.value).casefold()
-    detail = f"{submitted!r} vs {key.value!r}"
-    if _norm(submitted).casefold() == want:
+    detail = f"{submitted!r} vs {key.value!r}"  # keep the original for the trace
+    cleaned = _strip_md(submitted)  # tolerate ``**Yes**`` emphasis from the model
+    if _norm(cleaned).casefold() == want:
         return True, detail
     if want == "":
         return False, detail
     pattern = re.escape(want) + r"[ \t]*[,.;:!?()\n-]"
-    return re.match(pattern, submitted.strip().casefold()) is not None, detail
+    return re.match(pattern, cleaned.strip().casefold()) is not None, detail
 
 
 def _set(submitted: str, key: AnswerKey) -> tuple[bool, str]:

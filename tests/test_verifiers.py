@@ -76,6 +76,19 @@ def test_categorical_rejects_ambiguous_or_unrelated_lead():
     assert not _score("Not significant", no).passed
 
 
+def test_categorical_tolerates_markdown_emphasis():
+    # frontier models routinely bold their answer; emphasis must not block the match
+    yes = ExpectedAnswer.single("Yes", "categorical")
+    assert _score("**Yes**", yes).passed
+    assert _score("_No_", ExpectedAnswer.single("No", "categorical")).passed
+    # the exact Haiku smoke case: "Yes**" + a Markdown-broken justification
+    assert _score(
+        "Yes**\n\nThere is a statistically significant change (p < 0.001).", yes
+    ).passed
+    # stripping emphasis must not manufacture a false positive
+    assert not _score("Yesterday", yes).passed
+
+
 def test_exact_is_case_sensitive():
     assert _score("South", ExpectedAnswer.single("South", "exact")).passed
     assert not _score("south", ExpectedAnswer.single("South", "exact")).passed
