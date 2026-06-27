@@ -1,14 +1,17 @@
 # Statistical Agent Skills — Experiment Harness Architecture
 
-Status: **design locked (phase 1 scope)** · Last updated: 2026-06-15 (revised after a
-research-validation pass: EdenAI integration, action protocol, task weighting, sandbox
-references, and novelty positioning)
+Status: **Phases 0–5 built; first result in; now consolidating (Phase 6).**
 
-This document is the anchor for the project. It records the research framing, the
-design decisions we have committed to, the layered architecture, the concrete data
-schemas, the experimental condition matrix, and a phased build roadmap. Decisions
-explicitly deferred to "future work" are seamed into the architecture (interfaces
-defined, implementation omitted) so they become drop-ins rather than refactors.
+This document is the project anchor: research framing, committed design decisions, the layered
+architecture, data schemas, the experimental condition matrix, and the phased roadmap. It is the
+*design + plan* doc — for the system **as built** see [ARCHITECTURE.md](ARCHITECTURE.md), and for
+**what the experiments found** see [FINDINGS.md](FINDINGS.md).
+
+**Headline result (see FINDINGS):** on **Claude Haiku 4.5**, agent-activated ("agentic") skill
+delivery raises trap-arm pass rate **+12pp [95% CI +4, +20]** over no-skills and beats injecting the
+same skills — via *selective* engagement (the model reads only the skill it needs). The precondition
+is a frontier model: local coder models never invoke an offered skill (0/55 trials). One trap
+(`correlation`) resists every condition — a task-framing limit, not a skill one. Next steps: §12.
 
 ---
 
@@ -369,6 +372,10 @@ repos is a **future decision, not a phase-1 requirement** — this repo is self-
 
 ## 11. Directory structure (locked for phase 1)
 
+> This is the *original* phase-1 sketch. For the actual layout and module-by-module
+> responsibilities **as built**, see [ARCHITECTURE.md](ARCHITECTURE.md) (the source of truth);
+> the tree below is kept for historical context.
+
 ```
 statistical-agent-skills/         # importable package: src/statskills/ · Python 3.13
   pyproject.toml  uv.lock  .python-version  Makefile  .pre-commit-config.yaml
@@ -430,30 +437,56 @@ statistical-agent-skills/         # importable package: src/statskills/ · Pytho
   provenance, `retry.py`) under `statskills`; the neutral message/result types follow
   with the agent layer (Phase 1). Rewrite the README and add `.env.example` with
   `EDENAI_API_KEY`.
-- **Phase 1 — Minimal vertical slice.** Sandbox + single-agent ReAct loop +
-  `execute_python`; validate end-to-end on ~5 adopted tasks (no skills, no scoring yet).
-- **Phase 2 — Scoring + baseline.** Deterministic verifier + pass-rate metrics +
-  DABench adapter; produce a clean no-skills baseline.
-- **Phase 3 — Skills.** Skill parser/loader + `forced` router; author 3–5 starter
-  skills; run `curated` vs `off` on the constrained arm.
-- **Phase 4 — The real test.** Author `open` and `trap` tasks; run the arm where skills
-  should help; this is the core result.
-- **Phase 5 — Scale the matrix.** Add models (small+large), trials, the
-  `self_generated` control, and the `L0..L3` sweep.
-- **Phase 6 — Analysis & writeup.** Per-task deltas, significance, figures, draft.
-- **Future (seamed).** Validity decomposition, error-mode classification, integrity
-  probing, multi-agent sweep, broader statistical scope, and a skills-vs-RAG comparison
-  (procedural vs declarative knowledge).
+Status as built (results in [FINDINGS.md](FINDINGS.md)); the path diverged from the original plan
+where the evidence demanded it.
+
+- **Phase 0–1 — Foundation + vertical slice. ✅** Repo reconciled to `statskills`; sandbox +
+  single-agent CodeAct loop validated end-to-end.
+- **Phase 2 — Scoring + baseline. ✅** Deterministic closed-form verifier + pass-rate/N-trial
+  metrics + DABench adapter.
+- **Phase 3 — Skills. ✅** Parser/loader (L0–L3) + `forced` router + five statistics skills;
+  `curated` vs `off`. *Finding:* on the **constrained** arm skills **hurt** (−25pp) — method baked
+  in → payload distracts. Motivated the trap arm.
+- **Phase 4 — Trap arm. ✅** Authored the 5 validity-trap tasks + the N-trials/bootstrap-CI harness.
+- **Phase 5 — Scale the matrix. ✅ (with a pivot).** Built the condition-matrix runner and swept
+  `{7B,14B} × {off,L1,L2}`, then added **agent-activated (`agentic`) delivery** and a model axis.
+  *Findings:* local models give a fragile, selection-only 7B/L1 win, and **never invoke agentic
+  skills (0/55)** — skill invocation is emergent above local scale. So a **frontier provider
+  (Claude, native SDK)** was added; **Haiku 4.5: agentic 72% beats off 60% (+12pp [+4,+20]) and
+  beats injected 56% — injected itself lands ≈ off (−4pp, n.s.).** Not
+  built from the original plan: the `self_generated` control. Bonus: a clean-architecture pass
+  (run orchestration lifted into the library; configs DRY'd) + a Markdown-tolerant verifier.
+- **Phase 6 — Analysis & writeup. ◐ (in progress).** This documentation pass (ARCHITECTURE,
+  FINDINGS, README, CLAUDE). **Recommended next experiments, in priority order:**
+  1. **Model axis** — `{Haiku, Sonnet, ±Opus} × {off, L1, agentic}` to test whether **agentic
+     delivery's edge over both off and injection** holds across frontier capability (most publishable).
+  2. **Task design** — build the `authored_open` arm / a deliberation-forcing `correlation` framing,
+     to attack the one residual gap (every model fast-paths the trivially-phrased correlation trap).
+  3. **More N on Haiku** to tighten the +12% CI and confirm the injection-distraction effect.
+  4. Figures (`make_figures.py`) for the writeup.
+- **Future (seamed).** `self_generated` control; `description_match`/`model_choice` routers;
+  validity decomposition, error-mode classification, integrity probing (`evaluation/_deferred.py`);
+  multi-agent sweep; skills-vs-RAG (procedural vs declarative).
 
 ---
 
 ## 13. Deferred / open decisions
 
-- Specific small+large model pair and the full model set (must be available via EdenAI).
-- Exact pass/fail tolerance policy for numeric answers.
-- Size and sourcing of the authored task sets.
-- Whether EdenAI passes `seed` through (undocumented) — until verified, reproducibility
-  rests on fixed temperature + N trials, not seeds.
+Resolved since the original plan:
+- **Provider/model set.** EdenAI ended up **credit-blocked**, so the actual instruments are local
+  **Ollama** (qwen2.5-coder 7B/14B, qwen3-14B) for cheap iteration and **Claude Haiku 4.5** (native
+  Anthropic SDK) as the frontier model. EdenAI remains wired but unused.
+- **Numeric tolerance.** Per-`AnswerKey` tolerance on the closed-form verifier (e.g. trap
+  correlation ±5e-3; discrete counts ±1e-9).
+- **Authored task sourcing.** 5 validity-trap datasets generated deterministically by
+  `scripts/gen_authored_data.py`; the `authored_open` arm is still to be built (Phase 6).
+- **Seeds.** No provider passes a usable seed, so reproducibility rests on fixed temperature + N
+  trials (bootstrap CIs are themselves seeded). Note frontier models are *not* deterministic even at
+  temp 0 — which is what finally produced meaningful CIs.
+
+Still open:
+- The frontier model axis (which tiers beyond Haiku) and N for the headline campaign.
+- Whether the `correlation` gap closes under a deliberation-forcing task framing.
 
 ---
 
