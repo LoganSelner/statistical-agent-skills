@@ -452,13 +452,14 @@ where the evidence demanded it.
   `{7B,14B} × {off,L1,L2}`, then added **agent-activated (`agentic`) delivery** and a model axis.
   *Findings:* local models give a fragile, selection-only 7B/L1 win, and **never invoke agentic
   skills (0/55)** — skill invocation is emergent above local scale. So a **frontier provider
-  (Claude, native SDK)** was added; **Haiku 4.5: agentic +12pp [+4,+20] > injected > off.** Not
+  (Claude, native SDK)** was added; **Haiku 4.5: agentic 72% beats off 60% (+12pp [+4,+20]) and
+  beats injected 56% — injected itself lands ≈ off (−4pp, n.s.).** Not
   built from the original plan: the `self_generated` control. Bonus: a clean-architecture pass
   (run orchestration lifted into the library; configs DRY'd) + a Markdown-tolerant verifier.
 - **Phase 6 — Analysis & writeup. ◐ (in progress).** This documentation pass (ARCHITECTURE,
   FINDINGS, README, CLAUDE). **Recommended next experiments, in priority order:**
-  1. **Model axis** — `{Haiku, Sonnet, ±Opus} × {off, L1, agentic}` to test whether
-     *agentic > injected > off* is robust across frontier capability (the most publishable result).
+  1. **Model axis** — `{Haiku, Sonnet, ±Opus} × {off, L1, agentic}` to test whether **agentic
+     delivery's edge over both off and injection** holds across frontier capability (most publishable).
   2. **Task design** — build the `authored_open` arm / a deliberation-forcing `correlation` framing,
      to attack the one residual gap (every model fast-paths the trivially-phrased correlation trap).
   3. **More N on Haiku** to tighten the +12% CI and confirm the injection-distraction effect.

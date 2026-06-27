@@ -64,14 +64,15 @@ distraction. This is why the project pivoted to authored **trap** tasks (method-
 - Every cell is deterministic at temp 0 → CIs collapse; **N is the wrong axis** for these models.
 
 *Engagement grid* (`results/matrix-engagement-n5`, N=5) added the `agentic` arm — and the decisive
-negative: across **all 55 agentic trials (both models × 5 tasks × 5 trials), the agent read an
+negative: across **all 50 agentic trials (both models × 5 tasks × 5 trials), the agent read an
 offered skill 0 times.** Agentic ≤ off on both (7B 40%, 14B 40% — the L0 prompt preamble even
 distracts). The engagement gap is **behavioural, not a delivery artifact**.
 
 ### Model-axis probe — qwen3-14B also doesn't engage
-A newer, more agentic local model (qwen3-14B ≈ qwen2.5-32B capability) **also read 0 skills** —
-climbing the local ladder didn't help. Skill invocation is a late-emerging capability; local scale
-sits below the threshold. → the experiment needs a **frontier** model.
+A newer, more agentic local model (qwen3-14B ≈ qwen2.5-32B capability) **also read 0 skills** in a
+single-trial agentic probe (5 task-runs) — climbing the local ladder didn't help. Skill invocation
+is a late-emerging capability; local scale sits below the threshold. → the experiment needs a
+**frontier** model. (Combined with the grid, that's **0 reads in 55 local agentic trials**: 50 + 5.)
 
 ### Phase 5+ — Claude Haiku 4.5 (the headline)
 `results/matrix-haiku-n5`, N=5 (after the markdown verifier fix, PR #17):
