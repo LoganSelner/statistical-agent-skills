@@ -272,12 +272,15 @@ Executing model-generated code is the security- and reproducibility-critical lay
   Markdown-tolerant. No external model required.
 - **Metrics:** pass rate; for multi-part tasks all-or-nothing and proportional-by-subquestion scores;
   per-condition deltas with bootstrap CIs; token/step efficiency per condition.
-- **Engagement (NEW — closes the one real rigor gap).** Skill engagement currently lives only in raw
-  trajectories (`open("skills/<name>.md")` actions) and is recovered by hand. Add a stdlib-only
-  **engagement extractor** in `evaluation/` that scans saved trajectories into per-`(task, trial)`
-  skill-read records and folds them — plus the **read×pass contingency** — into the results schema as
-  versioned artifacts. This turns "selective engagement" from a narrative into a measurement, and
-  (with the higher N of §15) powers the per-trial mechanism the headline currently can't support.
+- **Engagement (BUILT — closed the one real rigor gap).** Skill engagement used to live only in raw
+  trajectories (`open("skills/<name>.md")` actions), recovered by hand. The stdlib-only
+  **engagement extractor** (`evaluation/engagement.py`) now scans saved trajectories into per-`(task,
+  trial)` skill-read records and folds them — plus the **read×pass contingency** — into versioned
+  artifacts (`engagement.jsonl` per run + an `engagement` block per cell in `matrix.json`). This
+  turned "selective engagement" from a narrative into a measurement (validated against the Haiku run:
+  read-rate 16%, MC read-freq 0.8, others 0). At N=5 the *cell-level* read×pass barely separates
+  (no-reads pile up on already-solved tasks); the **per-task** read-frequency isolates the mechanism,
+  and the higher N of §15 will power the per-trial story the headline can't yet support.
 - **Seams left for deferred work (interfaces only):** `ValidityScorer`, `ErrorModeClassifier`,
   `IntegrityProbe`.
 
@@ -402,9 +405,9 @@ Build **and smoke-validate** each step; the full results campaign waits until th
 and the metrics are first-class. (Smoke/sanity runs to confirm a phase works are encouraged; the
 deadline is not close, so quality wins over speed.)
 
-1. **Engagement as a first-class metric (§9).** Extractor + read×pass into the results schema. Cheap;
-   unblocks an honest mechanism claim. *(Use the pre-1.0 latitude to redefine the results schema
-   cleanly rather than appending.)*
+1. **Engagement as a first-class metric (§9). ✅ BUILT.** `evaluation/engagement.py` extracts skill
+   reads + the read×pass contingency into `engagement.jsonl` + `matrix.json`; validated against the
+   Haiku run (it reproduces the hand numbers). Unblocks the honest mechanism claim. **← next:**
 2. **Broaden the instrument with inferential-regression traps (§5).** Breaks the single-task
    dependency *and* serves the professor. Author the regression traps + the `regression-diagnostics`
    skill.
