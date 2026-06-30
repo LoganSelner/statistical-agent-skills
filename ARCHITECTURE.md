@@ -37,6 +37,7 @@ src/statskills/
   experiments/  the run orchestrator + the condition-matrix runner
 configs/        YAML configs with `extends:` inheritance (experiments/ = grid manifests)
 scripts/        thin CLIs: run, run_matrix, grade, compare, report, gen_authored_data, fetch_dabench
+apps/api/       FastAPI web backend (uv-workspace member; deliverable track) — imports inward
 ```
 
 ### `core/` — plumbing
@@ -121,6 +122,28 @@ tasks, and writes `trajectories.jsonl` + `run.json`. `matrix.py` — the conditi
 (pure; side effects injected via `MatrixIO`), `default_matrix_io` (the production wiring), and
 `compose_cell_config` (model base + arm overlay → effective config).
 
+### `apps/api/` — the web backend (deliverable track)
+A FastAPI service (`statskills_api`) that exposes the harness as the clickable demo (§11):
+submit a run (prompt + uploaded CSV + a skills/delivery toggle) → watch the agent's steps
+stream → fetch the composed, traceable report. It is a **uv-workspace member with its own
+manifest** depending inward on `statistical-agent-skills[reporting]` + FastAPI; the core's
+`[project.dependencies]` stay web-dep-free (`web → api → statskills`, never the reverse).
+- `stream.py` — the **streaming seam**: a `RunTap` (thread-safe queue) plus pass-through
+  `TappingLLM` / `TappingExecutor` wrappers that emit a `StepEvent` per `llm.complete()` /
+  `session.run()`. They ride the agent's existing LLM/sandbox **dependency injection**, so
+  the agent is never modified and the wrapped run yields a byte-identical trajectory.
+- `service.py` — `run_analysis`: build an ad-hoc `Task`, map the toggle to a skills block,
+  run the untouched agent via the shared `run_with_skills` dispatch (LLM + sandbox wrapped
+  in the tap), then `compose_report` → `verify` → `generate_figures`. A pure consumer; the
+  agent is never re-run to report.
+- `jobs.py` — an in-process `JobRegistry` (thread-safe store + a bounded-concurrency
+  semaphore) and `Job` (its tap, status, eventual `Report`): the submit→stream→fetch model
+  at single-user scale (no Celery/Redis, §11).
+- `app.py` — `POST /runs` (validates, creates a job, launches a **worker thread**),
+  `GET /runs/{id}/events` (SSE over the tap), `GET /runs/{id}` (status + `Report` JSON),
+  `GET /runs/{id}/figures/{name}`. Built by `create_app` so tests inject a fake LLM +
+  in-memory executor (no Docker, no API key). CI runs it as a separate job.
+
 ## Data flow
 
 ```
@@ -150,6 +173,11 @@ Run/grade are separate so re-grading (e.g. after a verifier fix) never re-runs t
   cells are `{model, base-config, arm}`. No per-(model×arm) config cross-product.
 - **Components resolve by name via the registry**, so conditions are configured in YAML, not
   code (routers, verifiers, executors).
+- **The web backend streams by tapping the injection seam, not by modifying the agent.** §11
+  wants live steps, but the agent (§2.2) stays untouched and exposes no per-step hook — so the
+  tap *wraps* the already-injected LLM + sandbox and emits events as a pure consumer. The
+  trajectory is byte-identical with or without it; streaming is an observability layer, not a
+  behaviour change.
 
 ## Extension points
 

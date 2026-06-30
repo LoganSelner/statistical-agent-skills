@@ -118,6 +118,21 @@ context only when the agent chooses to read it (progressive disclosure, as in in
 skill systems). The `engagement_grid.yaml` manifest sweeps `{off, L1 injected, agentic}` to
 test whether faithful delivery changes whether the agent applies a skill.
 
+## Web demo backend (`apps/api`)
+
+The deliverable-track FastAPI service turns the harness into a clickable demo: submit a
+run (prompt + dataset + a skills/delivery toggle), watch the agent's steps stream, and
+fetch the composed, traceable report. It's a workspace member depending inward on the
+core (FastAPI never enters the harness runtime).
+
+```bash
+uv sync --all-packages                                          # core + apps/api
+ANTHROPIC_API_KEY=… uv run uvicorn statskills_api.app:app --reload
+```
+
+See [apps/api/README.md](apps/api/README.md) for the endpoints. The frontend (`apps/web`)
+is the next step.
+
 ## Project layout
 
 ```
@@ -128,10 +143,12 @@ src/statskills/
   tasks/             # Task schema + authored slice/trap tasks + DABench adapter
   skills/            # parser/loader (L0–L3), forced router, delivery, statistics library
   evaluation/        # verifiers, metrics, N-trials CIs, run-artifact I/O (stdlib-only)
+  reporting/         # narrate a trajectory into a typed, traceable report (+ figures)
   experiments/       # run orchestrator (runner) + condition-matrix runner
 configs/             # YAML configs (extends: inheritance); experiments/ = grid manifests
 data/authored/       # small bundled datasets for the authored tasks
 scripts/             # run, run_matrix, grade, compare CLIs (thin adapters)
+apps/api/            # FastAPI web backend (workspace member; deliverable track)
 tests/               # pytest suite
 ```
 

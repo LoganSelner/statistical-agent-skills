@@ -8,7 +8,8 @@ UV ?= uv
 
 # --- Phony ---
 .PHONY: help bootstrap update env sandbox-image slice dabench-data dabench grade \
-	compare test test-all fmt fmt-check lint typecheck qa precommit clean deep-clean
+	compare test test-all fmt fmt-check lint typecheck typecheck-api test-api \
+	qa qa-api precommit clean deep-clean
 
 help: ## Show available targets
 	@awk '\
@@ -20,9 +21,9 @@ help: ## Show available targets
 	  }' $(MAKEFILE_LIST)
 
 # ---------- Setup ----------
-bootstrap: ## Install Python (if needed), sync deps, install git hooks
+bootstrap: ## Install Python (if needed), sync deps (incl. apps/api), install git hooks
 	$(UV) python install
-	$(UV) sync
+	$(UV) sync --all-packages
 	$(UV) run pre-commit install
 
 update: ## Upgrade locked package versions (respecting constraints)
@@ -66,21 +67,29 @@ test-all: ## Run all tests including slow
 	$(UV) run pytest
 
 fmt: ## Auto-fix lint + format
-	$(UV) run ruff check --select I --fix src tests || true
-	$(UV) run ruff check --fix src tests || true
+	$(UV) run ruff check --select I --fix src tests apps || true
+	$(UV) run ruff check --fix src tests apps || true
 	$(UV) run ruff format .
 
 fmt-check: ## Check formatting (CI gate)
-	$(UV) run ruff check --select I src tests
+	$(UV) run ruff check --select I src tests apps
 	$(UV) run ruff format --check .
 
 lint: ## Ruff lint
 	$(UV) run ruff check .
 
-typecheck: ## Mypy type check
+typecheck: ## Mypy type check (core)
 	$(UV) run mypy
 
-qa: fmt-check typecheck lint test ## Full quality gate
+typecheck-api: ## Mypy type check (apps/api; needs `uv sync --all-packages`)
+	MYPYPATH=apps/api/src:apps/api $(UV) run mypy apps/api/src apps/api/tests
+
+test-api: ## Run the apps/api test suite (hermetic; no Docker/API key)
+	$(UV) run pytest apps/api/tests
+
+qa: fmt-check typecheck lint test qa-api ## Full quality gate (core + apps/api)
+
+qa-api: typecheck-api test-api ## apps/api gate (mypy + pytest of the member)
 
 precommit: ## Run all pre-commit hooks on tracked files
 	$(UV) run pre-commit run --all-files

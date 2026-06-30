@@ -435,11 +435,19 @@ deadline is not close, so quality wins over speed.)
    the step — generated offline from the dataset+fit (no agent change, no sandbox change), via the
    optional `reporting` extra. Validated end-to-end on a real regression trajectory (narrates the
    robust-SE check, cites every step, embeds a residuals-vs-fitted plot, flags nothing fabricated).
-   **← next deliverable step.**
-6. **Web app (§11)** then a **headline campaign**. `apps/api` (jobs + SSE) + `apps/web` (the
-   clickable UI) render this `Report` with the skills/delivery toggle as the live demo; the campaign
-   (±Opus, N≥20 over the `model × delivery` grid + `make_figures.py`, deferred for now) tightens the
-   CIs for the writeup.
+6. **Web app (§11)** then a **headline campaign**.
+   - **Backend (`apps/api`). ✅ BUILT.** A FastAPI service (a uv-workspace member, FastAPI
+     out of the core runtime) exposes submit→stream→report: `POST /runs` launches a worker
+     thread, `GET /runs/{id}/events` streams the agent's steps over SSE, `GET /runs/{id}`
+     returns the composed traceable `Report` (+ a figure endpoint). Live streaming rides the
+     agent's LLM/sandbox **dependency-injection seam** via a pass-through *tap*, so the agent
+     stays byte-for-byte untouched (the trajectory is identical with or without it). The
+     off/injected/agentic toggle maps onto the skills block — the demo *is* the finding.
+     Hermetic tests (fake LLM + in-memory executor, no Docker/API) on a separate CI job.
+   - **Frontend (`apps/web`). ← next.** The clickable UI (own `package.json`) renders this
+     `Report` with the live SSE steps and the skills/delivery toggle; `web → api → statskills`.
+   - **Headline campaign** (±Opus, N≥20 over the `model × delivery` grid + `make_figures.py`,
+     deferred for now) tightens the CIs for the writeup.
 
 ### Future (seamed)
 

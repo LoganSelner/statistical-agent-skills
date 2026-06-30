@@ -20,6 +20,11 @@ from statskills.experiments.matrix import (
     parse_manifest,
     run_matrix,
 )
+from statskills.experiments.runner import (
+    execute_run,
+    execute_run_config,
+    run_with_skills,
+)
 
 __all__ = [
     "Cell",
@@ -30,6 +35,9 @@ __all__ = [
     "MatrixResult",
     "compose_cell_config",
     "default_matrix_io",
+    "execute_run",
+    "execute_run_config",
     "parse_manifest",
     "run_matrix",
+    "run_with_skills",
 ]
