@@ -33,9 +33,10 @@ src/statskills/
   sandbox/      isolated code execution (Docker default; local for tests)
   tasks/        Task schema + loaders (authored slice/trap, DABench adapter)
   evaluation/   deterministic verifiers, metrics, N-trial bootstrap CIs, run-artifact I/O
+  reporting/    narrate a trajectory into a typed, traceable report (deliverable track)
   experiments/  the run orchestrator + the condition-matrix runner
 configs/        YAML configs with `extends:` inheritance (experiments/ = grid manifests)
-scripts/        thin CLIs: run, run_matrix, grade, compare, gen_authored_data, fetch_dabench
+scripts/        thin CLIs: run, run_matrix, grade, compare, report, gen_authored_data, fetch_dabench
 ```
 
 ### `core/` — plumbing
@@ -96,6 +97,17 @@ CI), `engagement.py` (`extract_engagement` + `summarize_engagement` — skill-fi
 **read×pass** contingency from saved trajectories, the same trajectory-consumer pattern as
 grading), `runs.py` (run-directory I/O: `grade_run` / `load_scores` / `load_engagement`),
 `_deferred.py` (seamed interfaces for validity/error-mode/integrity scoring — interfaces only).
+
+### `reporting/` — narrate a trajectory (deliverable track)
+The sibling of `evaluation/`: where evaluation *scores* a saved trajectory, reporting *narrates*
+one into a typed, traceable `Report` (the §10 sections). A **deterministic backbone** —
+`evidence.py` (`observed_steps`: the citable code-step/observation pairs) + `verify.py` (every
+cited number must appear in its step's observation — the `compute-dont-fabricate` skill mechanized,
+stdlib-only) — wraps an **injected, mockable LLM-composer** (`compose.py`: prompt → schema JSON →
+validate + bounded retry → `verify`). `render.py` emits Markdown with inline `[step N]` indices and
+flags unverified claims; `schema.py` is the frozen-dataclass `Report`/`Claim`. Like grading, it
+**never re-runs the agent**; unlike `evaluation/`, the composer uses the agent's `LLM` (so the layer
+is not stdlib-only, though its `evidence`/`verify` backbone is). CLI: `scripts/report.py`.
 
 ### `experiments/` — orchestration
 `runner.py` — `execute_run_config(cfg, *, out_dir, …)` (the testable core; optional injected
