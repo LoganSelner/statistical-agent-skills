@@ -14,10 +14,12 @@ from __future__ import annotations
 
 from itertools import combinations
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from scipy import stats
+import statsmodels.api as sm
 from statsmodels.stats.multitest import multipletests
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "authored"
@@ -25,6 +27,12 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "authored"
 
 def _write(df: pd.DataFrame, name: str) -> None:
     df.to_csv(DATA_DIR / name, index=False)
+
+
+def _ols(y: pd.Series, *predictors: pd.Series) -> Any:
+    """Fit OLS of ``y`` on a constant + the given predictor columns."""
+    x = sm.add_constant(np.column_stack([np.asarray(p, float) for p in predictors]))
+    return sm.OLS(np.asarray(y, float), x).fit()
 
 
 def correlation() -> tuple[str, str]:
@@ -134,9 +142,98 @@ def mann_whitney() -> tuple[str, str]:
     )
 
 
+def reg_confounding() -> tuple[str, str]:
+    """Omitted-variable bias: y~x alone is positive, but the true effect of x (adjusting
+    for the confounder z) is negative — a Simpson's-paradox sign flip."""
+    rng = np.random.default_rng(1)
+    n = 60
+    z = rng.normal(0, 1, n)
+    x = z + rng.normal(0, 0.5, n)  # x is driven by the confounder z
+    y = -1.0 * x + 2.0 * z + rng.normal(0, 0.5, n)  # true x-effect is negative
+    df = pd.DataFrame({"x": np.round(x, 4), "z": np.round(z, 4), "y": np.round(y, 4)})
+    _write(df, "reg_confounding.csv")
+    simple, full = _ols(df.y, df.x), _ols(df.y, df.x, df.z)
+    naive = "positive" if simple.params[1] > 0 else "negative"
+    correct = "negative" if full.params[1] < 0 else "positive"
+    return (
+        f"y~x slope = {simple.params[1]:+.2f} (p={simple.pvalues[1]:.3f}) -> {naive}",
+        f"y~x+z x-coef = {full.params[1]:+.2f} (p={full.pvalues[1]:.3f}) "
+        f"-> ground truth {correct}",
+    )
+
+
+def reg_heteroskedasticity() -> tuple[str, str]:
+    """Heteroskedastic noise: default OLS standard errors call the slope significant,
+    but heteroskedasticity-robust (HC3) standard errors do not."""
+    rng = np.random.default_rng(11)
+    n = 80
+    x = rng.uniform(0.5, 10, n)
+    y = 0.4 * x + rng.normal(0, 0.5 + 0.9 * x)  # noise spread grows with x
+    df = pd.DataFrame({"x": np.round(x, 4), "y": np.round(y, 4)})
+    _write(df, "reg_heteroskedasticity.csv")
+    m = _ols(df.y, df.x)
+    p_default = m.pvalues[1]
+    p_hc3 = m.get_robustcov_results(cov_type="HC3").pvalues[1]
+    naive = "Yes" if p_default < 0.05 else "No"
+    correct = "Yes" if p_hc3 < 0.05 else "No"
+    return (
+        f"default-SE p = {p_default:.4f} -> {naive}",
+        f"HC3 robust-SE p = {p_hc3:.4f} -> ground truth {correct}",
+    )
+
+
+def reg_influence() -> tuple[str, str]:
+    """One high-leverage point drives the slope: the full-data fit is significant, but
+    dropping the influential point(s) (Cook's distance > 4/n) it is not."""
+    rng = np.random.default_rng(1)
+    n = 40
+    x = np.append(rng.normal(0, 1, n), 10.0)  # bulk has no slope; one far outlier
+    y = np.append(rng.normal(0, 1, n), 10.0)
+    df = pd.DataFrame({"x": np.round(x, 4), "y": np.round(y, 4)})
+    _write(df, "reg_influence.csv")
+    m = _ols(df.y, df.x)
+    keep = m.get_influence().cooks_distance[0] <= 4 / len(df)
+    refit = _ols(df.y[keep], df.x[keep])
+    naive = "Yes" if m.pvalues[1] < 0.05 else "No"
+    correct = "Yes" if refit.pvalues[1] < 0.05 else "No"
+    return (
+        f"full-data p = {m.pvalues[1]:.4f} -> {naive}",
+        f"drop-influential p = {refit.pvalues[1]:.4f} -> ground truth {correct}",
+    )
+
+
+def reg_nonlinearity() -> tuple[str, str]:
+    """A symmetric U-shape: the linear slope is ~0 and non-significant, but a quadratic
+    term is highly significant — 'no linear effect' misses a strong relationship."""
+    rng = np.random.default_rng(1)
+    n = 60
+    x = rng.uniform(-3, 3, n)
+    y = x**2 + rng.normal(0, 1.0, n)
+    df = pd.DataFrame({"x": np.round(x, 4), "y": np.round(y, 4)})
+    _write(df, "reg_nonlinearity.csv")
+    p_linear = _ols(df.y, df.x).pvalues[1]
+    p_quad = _ols(df.y, df.x, df.x**2).pvalues[2]
+    naive = "Yes" if p_linear < 0.05 else "No"
+    correct = "Yes" if p_quad < 0.05 else "No"
+    return (
+        f"linear slope p = {p_linear:.4f} -> {naive}",
+        f"quadratic term p = {p_quad:.2e} -> ground truth {correct}",
+    )
+
+
 def main() -> int:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    for fn in (correlation, welch, paired, multiple_comparisons, mann_whitney):
+    for fn in (
+        correlation,
+        welch,
+        paired,
+        multiple_comparisons,
+        mann_whitney,
+        reg_confounding,
+        reg_heteroskedasticity,
+        reg_influence,
+        reg_nonlinearity,
+    ):
         naive, correct = fn()
         print(f"\n[{fn.__name__}]")
         print(f"    naive   : {naive}")
