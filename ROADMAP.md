@@ -407,12 +407,17 @@ deadline is not close, so quality wins over speed.)
 
 1. **Engagement as a first-class metric (§9). ✅ BUILT.** `evaluation/engagement.py` extracts skill
    reads + the read×pass contingency into `engagement.jsonl` + `matrix.json`; validated against the
-   Haiku run (it reproduces the hand numbers). Unblocks the honest mechanism claim. **← next:**
-2. **Broaden the instrument with inferential-regression traps (§5).** Breaks the single-task
-   dependency *and* serves the professor. Author the regression traps + the `regression-diagnostics`
-   skill.
+   Haiku run (it reproduces the hand numbers). Unblocks the honest mechanism claim.
+2. **Broaden the instrument with inferential-regression traps (§5). ✅ BUILT + smoke-validated.** Four
+   regression traps (`authored_regression`) + the `regression-diagnostics` skill. Haiku fails them
+   **0%** unaided (single-task dependency broken); skills give **injected +95pp / agentic +75pp**, and
+   the delivery effect **flips** (injected > agentic, because every task needs the skill) with a clean
+   read→pass 6/6 mechanism. See FINDINGS Phase 6. Sharpens §0: the sign of injected−agentic is
+   task-mix-dependent. **← next:**
 3. **Injection dose-response arm (§4).** `injected · relevant_only` vs `injected · all`. Turns
-   "injection distracts" into a causal, dose-response test (bridges to GSM-DC).
+   "injection distracts" into a causal, dose-response test (bridges to GSM-DC) — now doubly motivated
+   by the Phase-6 flip. Pair with an **L0-description-only probe** (separate the discovery-surface
+   nudge from the body read, per Phase 6's confounding/heteroskedasticity result).
 4. **Reporting layer (§10).** Trajectory → structured, traceable report with figures; validate on
    regression cases.
 5. **Web app (§11).** `apps/api` (jobs + SSE) then `apps/web` (clickable UI with the skills/delivery

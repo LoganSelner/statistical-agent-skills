@@ -16,6 +16,16 @@ command in [Reproducibility](#reproducibility).
   genuinely non-obvious (multiple-comparison correction) and fast-paths the rest. Agentic delivery
   gets that targeted benefit with no context cost; **injection distracts** on tasks the model
   already solved, cancelling the gain.
+- **The instrument broadened — and the delivery effect _flips_ (newest, the bigger result):** four
+  authored *regression* traps (Simpson's/omitted-variable, heteroskedasticity, influential points,
+  non-linearity) that Haiku fails **0%** unaided (the naive answer 20/20). Skills produce large,
+  multi-procedure gains — **injected +95pp [85, 100] > agentic +75pp [55, 95]** — breaking the
+  single-task dependency. Injection *wins* here because *every* task needs the skill (no already-solved
+  tasks for the payload to distract), while agentic **under-engages** (30% read-rate). And the
+  mechanism is now clean: **every agentic skill read led to a pass (6/6)**, the right skill is picked
+  every time, and the failures are all non-read trials — the per-trial "right skill → solve" story the
+  monogenic arm couldn't support. §0 sharpens: the *sign* of injected−agentic tracks the fraction of
+  tasks that need the skill.
 - **The hard precondition:** this only appears on a **frontier** model. Local coder models
   (qwen2.5-coder 7B/14B, qwen3-14B) **never read an offered skill** (0/55 agentic trials) — skill
   *invocation* is an emergent capability they sit below.
@@ -107,6 +117,39 @@ is a late-emerging capability; local scale sits below the threshold. → the exp
 - **Real stochasticity:** off is deterministic, but L1 [40,40,60,60,80] and agentic [80,60,60,80,80]
   vary trial-to-trial → the first non-degenerate CIs in the project.
 
+### Phase 6 — inferential-regression traps (the instrument broadens; the delivery effect flips)
+`results/matrix-20260630T041619Z`, N=5, four authored regression traps on Haiku (`authored_regression`):
+
+| arm | pass-rate (95% CI) | Δ vs off | read-rate |
+|---|---|---|---|
+| off | 0% [0, 0] | — | 0% |
+| L1 (injected) | 95% [85, 100] | **+95% [+85, +100]** | 0% |
+| agentic | 75% [55, 95] | **+75% [+55, +95]** | 30% |
+
+Per-task pass-frequency (off / L1 / agentic): `reg-confounding` 0/100/100, `reg-heteroskedasticity`
+0/100/100, `reg-influence` 0/100/60, `reg-nonlinearity` 0/80/40 (%).
+
+- **Headroom is total and genuine.** off gives the *naive* answer on every trap, every trial (20/20,
+  0 errors) — the frontier fast-path reliably falls for each. This is the headroom the original arm
+  lacked (welch/mwu/paired were solved unaided), so **the single-task dependency is broken**: four
+  procedures, each 0% → high with skills.
+- **The delivery effect flips — injected (95%) > agentic (75%)**, the reverse of the original arm.
+  When *every* task needs the skill there are no already-solved tasks for the injected payload to
+  distract, so reliable delivery wins; agentic only helps when the model engages, and Haiku
+  **under-engages** (30% read-rate). Selectivity is an asset when most tasks don't need the skill and a
+  liability when all do.
+- **Clean mechanism (what the monogenic arm couldn't show).** In the agentic arm **read → pass is
+  6/6 (100%)** vs no-read → pass 9/14 (64%); the agent picks the right skill every time
+  (`regression-diagnostics`, 6/6, from a 6-skill library); failures concentrate in non-read trials
+  (`reg-nonlinearity`: every read passed, every non-read failed). The per-trial "right skill → solve"
+  story now holds.
+- **Nuance — the L0 description is itself a nudge.** `reg-confounding` and `reg-heteroskedasticity`
+  pass in agentic with 0–2 body reads: the L0 discovery surface (skill *names + descriptions* in the
+  prompt) flips behavior without a body read (off, lacking even that, is 0%). So the agentic gain
+  blends an L0-description effect with the body-read effect — worth separating in a future probe.
+- **Caveat:** N=5 (reads N=6) — the read→pass gap is clean and directional but small-N; the headline
+  campaign (higher N) will firm it.
+
 ## Interpretation
 
 1. **Delivery is decisive.** Agent-activated delivery wins because it is *selective* — the model
@@ -122,11 +165,18 @@ is a late-emerging capability; local scale sits below the threshold. → the exp
    correlation coefficient?" to `df.corr()` (Pearson) without consulting a skill — the task cues the
    naive method and the model is (over)confident. A deliberation-forcing framing is the lever, not a
    better skill.
+5. **Selectivity cuts both ways (the delivery lever is task-mix-dependent).** Agent-activation's
+   selectivity *wins* when the skill is needed on only some tasks (original arm: it avoids injection's
+   distraction) but *loses* when it is needed on all (regression arm: the model under-fires and misses
+   it, while injection delivers reliably). So the correctness-optimal delivery mechanism depends on the
+   fraction of tasks that need the skill — the cleanest evidence yet for delivery-mechanism-as-a-lever
+   (§0), and a caution against reading "agentic > injected" as universal.
 
 ## Threats to validity
 
-- **Coarse instrument:** 5 trap tasks → 20pp granularity; N=5 gives real-but-wide CIs.
-- **One frontier model:** the agentic>injected result is shown on Haiku only; the
+- **Coarse instrument:** 4–5 trap tasks per arm → ~20pp granularity; N=5 gives real-but-wide CIs.
+- **One frontier model:** the delivery interaction is shown on Haiku only — and is **task-mix
+  dependent** (agentic>injected on the original arm, injected>agentic on regression); the
   capability×delivery interaction (Sonnet/Opus) is untested.
 - **Pretraining-rich domain:** inferential statistics is well-covered, so headroom is inherently
   limited (the literature's biggest skill gains are in under-represented domains).
@@ -146,13 +196,17 @@ uv run python scripts/run_matrix.py configs/experiments/<grid>.yaml # off/.../ar
 |---|---|---|
 | disclosure (7B/14B × off/L1/L2) | `disclosure_grid.yaml` | `results/matrix-disclosure-n5/` |
 | engagement (7B/14B × off/L1/agentic) | `engagement_grid.yaml` | `results/matrix-engagement-n5/` |
-| **Haiku (off/L1/agentic)** | `haiku_grid.yaml` | `results/matrix-haiku-n5/` |
+| **Haiku traps (off/L1/agentic)** | `haiku_grid.yaml` | `results/matrix-haiku-n5/` |
+| **Haiku regression traps (off/L1/agentic)** | `regression_haiku_grid.yaml` | `results/matrix-<ts>/` |
 
 Haiku needs `ANTHROPIC_API_KEY`; local grids need a reachable Ollama (`OLLAMA_BASE_URL`). All need
 the Docker sandbox image (`make sandbox-image`). Each cell's `run.json` carries full provenance.
 
 ## What's next
 
-The model axis (add Sonnet ± Opus), task design (`authored_open` / a deliberation-forcing
-correlation framing for the residual gap), and more N to tighten the +12% CI — prioritised in
-[ROADMAP.md](ROADMAP.md) §12.
+The regression broadening turned "do skills help" into "*which delivery* helps, and *when*" — the
+delivery effect's sign is now a measured, task-mix-dependent quantity. Next: the **dose-response
+injection arm** (`injected · relevant_only` vs `all`) to pin why injection wins when every task needs
+the skill; the **model axis** (Sonnet ± Opus); an **L0-description-only probe** to separate the
+discovery-surface nudge from the body read; and higher N for the headline campaign — prioritised in
+[ROADMAP.md](ROADMAP.md) §15.

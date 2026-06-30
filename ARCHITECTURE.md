@@ -67,7 +67,8 @@ a per-task payload, keyed on **`delivery`**:
 - `injected` → a single rendered payload appended to the system prompt (the agent is passive).
 - `agentic` → an L0 *discovery* surface in the prompt + the skill bodies staged as **files in
   the sandbox**, which the agent reads on demand (`open("skills/<name>.md")`) — progressive
-  disclosure the Claude-Code way. `library/statistics/` holds the five starter skills.
+  disclosure the Claude-Code way. `library/statistics/` holds six skills (the five starter skills +
+  `regression-diagnostics`).
 
 ### `sandbox/` — isolated execution
 `base.py` defines the `Executor`/`Session` protocols. `docker.py` (default) runs each session
@@ -78,9 +79,11 @@ is the stateful-kernel subprocess driver.
 
 ### `tasks/` — what the agent is asked
 `schema.py` (`Task`, `Dataset`, `ExpectedAnswer`/`AnswerKey`). `loader.py` dispatches a config
-`tasks:` spec to a task list: `authored` (slice), `authored_trap` (the 5 traps), `dabench`
-(adapter). `authored/trap_tasks.py` + `scripts/gen_authored_data.py` generate the trap datasets
-(engineered so the *naive* method misleads).
+`tasks:` spec to a task list: `authored` (slice), `authored_trap` (the 5 traps),
+`authored_regression` (the 4 inferential-regression traps), `dabench` (adapter).
+`authored/trap_tasks.py` + `authored/regression_trap_tasks.py` + `scripts/gen_authored_data.py`
+generate the trap datasets (engineered so the *naive* method misleads); each arm is self-checked by
+`tests/test_*trap_tasks.py` (correct method == truth, naive != it).
 
 ### `evaluation/` — deterministic scoring (stdlib-only)
 `verifiers.py` (`ClosedFormVerifier` — per-`AnswerKey` numeric/categorical/exact/set/regex
