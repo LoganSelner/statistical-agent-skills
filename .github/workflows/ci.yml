@@ -23,7 +23,32 @@ jobs:
           key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}-pc-${{ hashFiles('.pre-commit-config.yaml') }}
           restore-keys: ${{ runner.os }}-
       - run: uv python install
+      # No --all-packages: the root project does not depend on the apps/api member, so
+      # this installs the core + dev only — FastAPI is NOT here. mypy/pytest below then
+      # cover only the core, proving the harness builds and runs web-dep-free (§11/§14).
       - run: uv sync --locked
       - run: uv run pre-commit run --all-files --show-diff-on-failure
       - run: uv run mypy
       - run: uv run pytest
+
+  # The deliverable-track web backend lives in its own workspace member with its own
+  # dependencies (FastAPI etc.); it gets its own job so the core gate above stays
+  # web-dep-free. ruff is covered tree-wide by pre-commit (the `checks` job); here we
+  # run the checks that need apps/api's deps installed: mypy + pytest of the member.
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: latest }
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-api-${{ hashFiles('uv.lock') }}
+          restore-keys: ${{ runner.os }}-uv-api-
+      - run: uv python install
+      - run: uv sync --locked --all-packages
+      - run: uv run mypy apps/api/src apps/api/tests
+        env:
+          MYPYPATH: apps/api/src:apps/api
+      - run: uv run pytest apps/api/tests

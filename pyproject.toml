@@ -58,6 +58,14 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/statskills"]
 
+# The deliverable-track web backend (apps/api) is a workspace MEMBER, not a core
+# dependency: the dependency points inward (api -> statskills), never the reverse. Because
+# the root project does not depend on the member, a plain `uv sync` installs the core +
+# dev only — FastAPI never enters the harness env (the §11/§14 boundary; the core CI job
+# proves the harness runs web-dep-free). `uv sync --all-packages` adds apps/api for dev.
+[tool.uv.workspace]
+members = ["apps/api"]
+
 [tool.ruff]
 line-length = 88
 target-version = "py313"

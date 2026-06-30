@@ -1,0 +1,28 @@
+[project]
+name = "statskills-api"
+version = "0.1.0"
+description = "FastAPI backend for the statskills web demo: submit a run, stream the agent's steps, fetch the traceable report (ROADMAP §11)."
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    # The core harness, with the reporting extra so the run service can compose
+    # the traceable report + generate figures. Resolved from the workspace (below),
+    # so the dependency points inward: api -> statskills, never the reverse.
+    "statistical-agent-skills[reporting]",
+    "fastapi>=0.115",        # the ASGI app + multipart upload + dependency injection
+    "uvicorn[standard]>=0.30",  # the ASGI server (dev/run; not needed for tests)
+    "sse-starlette>=2",      # EventSourceResponse: SSE with client-disconnect handling
+    "python-multipart>=0.0.9",  # multipart/form-data parsing for the dataset upload
+]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/statskills_api"]
+
+# Resolve the core dependency from this repo's workspace (the sibling root project),
+# not PyPI — app and core co-evolve in one monorepo (ROADMAP §11 topology decision).
+[tool.uv.sources]
+statistical-agent-skills = { workspace = true }
