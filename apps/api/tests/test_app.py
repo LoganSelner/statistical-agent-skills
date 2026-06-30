@@ -156,6 +156,26 @@ def test_rejects_oversize_upload(client) -> None:
     assert resp.status_code == 413
 
 
+def test_no_static_mount_without_env(tmp_path, monkeypatch) -> None:
+    monkeypatch.delenv("STATSKILLS_WEB_DIST", raising=False)
+    application = create_app(runs_dir=tmp_path / "runs")
+    with TestClient(application) as test_client:
+        assert test_client.get("/").status_code == 404  # no SPA mounted
+
+
+def test_optional_static_mount_serves_index(tmp_path, monkeypatch) -> None:
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "index.html").write_text("<!doctype html><title>demo</title>")
+    monkeypatch.setenv("STATSKILLS_WEB_DIST", str(dist))
+    application = create_app(runs_dir=tmp_path / "runs")
+    with TestClient(application) as test_client:
+        root = test_client.get("/")
+        assert root.status_code == 200 and "demo" in root.text
+        # The API routes still win over the catch-all static mount.
+        assert test_client.get("/healthz").json() == {"status": "ok"}
+
+
 def test_concurrency_cap_returns_429(app, client) -> None:
     # Fill both slots so the next submit is rejected without starting a run.
     assert app.state.registry.try_acquire_slot()

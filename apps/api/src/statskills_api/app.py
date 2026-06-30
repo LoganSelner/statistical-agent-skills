@@ -17,6 +17,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import queue
 import tempfile
@@ -26,6 +27,7 @@ from typing import Any
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 from statskills.agent.llm import LLM
@@ -193,7 +195,22 @@ def create_app(
             raise HTTPException(404, "no such figure")
         return FileResponse(path, media_type="image/png")
 
+    _mount_static(app)
     return app
+
+
+def _mount_static(app: FastAPI) -> None:
+    """Optionally serve a built single-page frontend at ``/`` — the one-command demo.
+
+    Off by default. If ``STATSKILLS_WEB_DIST`` names an existing directory, its contents
+    are served as static files (SPA-style) — mounted **last**, so the API routes above
+    always win. This is a generic "serve a static dir" capability: the API never imports
+    or builds ``apps/web``, and with the env var unset (tests, CI) nothing is mounted.
+    """
+    dist = os.environ.get("STATSKILLS_WEB_DIST")
+    if not dist or not Path(dist).is_dir():
+        return
+    app.mount("/", StaticFiles(directory=dist, html=True), name="web")
 
 
 def _done_event(job: Job) -> dict[str, str]:
