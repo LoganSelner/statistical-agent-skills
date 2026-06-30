@@ -1,0 +1,27 @@
+# Model axis x delivery on the ORIGINAL trap arm: {Haiku, Sonnet} x the 5-arm dose sweep. Tests
+# whether the Haiku delivery story (selectivity lever, the flip, the agentic engagement-gap)
+# generalises to a more capable model. Haiku re-runs alongside Sonnet so the comparison is
+# apples-to-apples (same SHA/conditions) and replicates as a check. Needs ANTHROPIC_API_KEY + Docker.
+#   python scripts/gen_authored_data.py                       # generate the trap CSVs first
+#   python scripts/run_matrix.py configs/experiments/model_axis_traps.yaml
+#
+# Each arm is compared to its OWN model's "off" baseline. Quote "off" (a bare off is a YAML 1.1 bool).
+trials: 5
+baseline_arm: "off"
+arms:
+  "off": {}
+  all_l1: { mode: curated, resolution: L1, router: forced, library: statistics }
+  all_l0: { mode: curated, resolution: L0, router: forced, library: statistics }
+  rel_l1: { mode: curated, resolution: L1, router: relevant, library: statistics }
+  agentic: { mode: curated, delivery: agentic, resolution: L1, router: forced, library: statistics }
+cells:
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: "off" }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: all_l1 }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: all_l0 }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: rel_l1 }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: agentic }
+  - { model: "claude-sonnet-4-6", config: trap_sonnet.yaml, arm: "off" }
+  - { model: "claude-sonnet-4-6", config: trap_sonnet.yaml, arm: all_l1 }
+  - { model: "claude-sonnet-4-6", config: trap_sonnet.yaml, arm: all_l0 }
+  - { model: "claude-sonnet-4-6", config: trap_sonnet.yaml, arm: rel_l1 }
+  - { model: "claude-sonnet-4-6", config: trap_sonnet.yaml, arm: agentic }

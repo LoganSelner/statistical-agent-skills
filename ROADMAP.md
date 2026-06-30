@@ -419,15 +419,19 @@ deadline is not close, so quality wins over speed.)
    flip:** the *distractor payload* is the lever — inject-all helps 0pp on the original arm while
    inject-relevant recovers the full +12pp, and `relevant·L1` ≈ `agentic` (selectivity is the
    mechanism, by injection or activation). Bonus: descriptions (L0) carry nameable fixes but the body
-   is needed for procedural ones. See FINDINGS Phase 7. Closes the §0 loop. **← next:**
-4. **Model axis + reporting layer (§10).** Generalise the dose-response across capability (Sonnet ±
-   Opus), then the deliverable track: trajectory → structured, traceable report with figures; validate
-   on regression cases.
-5. **Web app (§11).** `apps/api` (jobs + SSE) then `apps/web` (clickable UI with the skills/delivery
-   toggle).
-6. **Headline campaign.** `{haiku, sonnet, ±opus} × {off, injected·all, injected·relevant, agentic}`
-   over the broadened task set at N≥20 — generalization across capability, on an instrument that no
-   longer rests on one task. Then `make_figures.py` for the writeup.
+   is needed for procedural ones. See FINDINGS Phase 7. Closes the §0 loop.
+4. **Model axis — Sonnet 4.6 alongside Haiku (§4 model factor). ✅ BUILT + smoke-validated.** A
+   `model × delivery` grid on both arms. **Capability reframes the thesis:** the lever is *relevance
+   routing*, not "agentic" per se — Haiku under-reads (selective, agentic wins), Sonnet over-reads
+   (non-selective, agentic ties inject-all and loses to relevant-injection); oracle-relevant injection
+   is the robust optimum (Sonnet + relevant = **100% on both arms**). Capability shrinks headroom
+   (regression off 5%→50%). See FINDINGS Phase 8. **← next:**
+5. **Headline campaign + reporting layer (§10).** ±Opus (if warranted) and a higher-N (N≥20) campaign
+   over the `model × delivery` grid to tighten the CIs + `make_figures.py` for the writeup; then the
+   deliverable track: a trajectory → structured, traceable report with regression figures (needs the
+   matplotlib sandbox bump), validated on regression cases.
+6. **Web app (§11).** `apps/api` (jobs + SSE) then `apps/web` (clickable UI with the skills/delivery
+   toggle) — the live demonstration of the finding.
 
 ### Future (seamed)
 

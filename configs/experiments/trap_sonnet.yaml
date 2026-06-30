@@ -1,0 +1,14 @@
+# Claude Sonnet 4.6 base — the model-axis counterpart to trap_haiku.yaml (needs ANTHROPIC_API_KEY).
+# Same authored trap arm on a more capable frontier model, to test whether the delivery story
+# (selectivity lever, the flip, the agentic engagement-gap) generalises beyond Haiku. Setting
+# provider: anthropic replaces slice.yaml's EdenAI llm block wholesale (provider is an impl selector).
+extends: ../slice.yaml
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-6
+  temperature: 0
+  request_timeout: 180   # seconds; Sonnet is slower than Haiku — this only bounds a true stall
+max_steps: 12
+trials: 5
+tasks:
+  set: authored_trap

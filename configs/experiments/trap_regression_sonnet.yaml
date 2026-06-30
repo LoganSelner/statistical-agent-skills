@@ -1,0 +1,5 @@
+# Claude Sonnet 4.6 base for the inferential-REGRESSION trap arm (needs ANTHROPIC_API_KEY).
+# Same frontier instrument as trap_sonnet.yaml, pointed at the authored_regression task set.
+extends: trap_sonnet.yaml
+tasks:
+  set: authored_regression
