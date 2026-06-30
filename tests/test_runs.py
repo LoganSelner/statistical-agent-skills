@@ -73,3 +73,39 @@ def test_grade_run_missing_trajectories_raises(tmp_path: Path) -> None:
 def test_load_scores_missing_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match=r"scores\.jsonl"):
         runs.load_scores(tmp_path)
+
+
+def test_extract_run_engagement_writes_and_load_round_trips(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run-e"
+    _write_run(
+        run_dir,
+        [
+            {"task_id": "t", "trial": 0, "steps": [{"code": 'open("skills/mc.md")'}]},
+            {"task_id": "t", "trial": 1, "steps": [{"code": "print(1)"}]},
+        ],
+        task_set=None,
+    )
+
+    records = runs.extract_run_engagement(run_dir)
+
+    assert (run_dir / runs.ENGAGEMENT).exists()
+    assert [(r.task_id, r.trial, r.skills_read) for r in records] == [
+        ("t", 0, ("mc",)),
+        ("t", 1, ()),
+    ]
+    # The tuple field survives the JSON round-trip (list -> tuple on load).
+    assert runs.load_engagement(run_dir) == records
+
+
+def test_load_engagement_derives_from_trajectories_when_absent(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run-derive"
+    _write_run(
+        run_dir,
+        [{"task_id": "t", "trial": 0, "steps": [{"code": 'open("skills/mc.md")'}]}],
+        task_set=None,
+    )
+    # No engagement.jsonl yet — load extracts it on demand (old runs / resume).
+    assert not (run_dir / runs.ENGAGEMENT).exists()
+    records = runs.load_engagement(run_dir)
+    assert [r.skills_read for r in records] == [("mc",)]
+    assert (run_dir / runs.ENGAGEMENT).exists()
