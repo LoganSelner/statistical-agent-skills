@@ -1,509 +1,461 @@
-# Statistical Agent Skills — Experiment Harness Architecture
+# Statistical Agent Skills — Research Roadmap
 
-Status: **Phases 0–5 built; first result in; now consolidating (Phase 6).**
+Status: **Phases 0–5 built; first result in; consolidating and broadening (Phase 6+).**
 
-This document is the project anchor: research framing, committed design decisions, the layered
-architecture, data schemas, the experimental condition matrix, and the phased roadmap. It is the
-*design + plan* doc — for the system **as built** see [ARCHITECTURE.md](ARCHITECTURE.md), and for
-**what the experiments found** see [FINDINGS.md](FINDINGS.md).
+This document is the project anchor: research framing, committed design decisions, the
+experimental condition matrix, and the phased roadmap. It is the *design + plan* doc — for the
+system **as built** see [ARCHITECTURE.md](ARCHITECTURE.md), and for **what the experiments found**
+see [FINDINGS.md](FINDINGS.md).
 
 **Headline result (see FINDINGS):** on **Claude Haiku 4.5**, agent-activated ("agentic") skill
-delivery raises trap-arm pass rate **+12pp [95% CI +4, +20]** over no-skills and beats injecting the
-same skills — via *selective* engagement (the model reads only the skill it needs). The precondition
-is a frontier model: local coder models never invoke an offered skill (0/55 trials). One trap
-(`correlation`) resists every condition — a task-framing limit, not a skill one. Next steps: §12.
+delivery raises trap-arm pass rate **+12pp [95% CI +4, +20]** over no-skills and beats *injecting*
+the same skills — via *selective* engagement (the model reads only the skill it needs). The
+precondition is a frontier model: local coder models never invoke an offered skill (0/55 trials).
+One trap (`correlation`) resists every condition — a task-framing limit, not a skill one.
+
+**What that result is currently made of (the honest caveat that drives the next phase).** The whole
++12pp is carried by a **single task** — `trap-multiple-comparisons` (0→60%); agentic is flat on the
+other four traps. And at the per-trial level the mechanism is noisy: one MC solve happened after
+reading the *assumption-checks* skill (not the MC one), and one trial that *did* read the MC skill
+still failed (read-MC → 2/3 passed; didn't → 1/2). So the aggregate effect is real but **monogenic**,
+and the per-trial "reads the right skill → solves" story is **not** established at N=5. Breaking that
+single-task dependency is the top priority (§15).
+
+---
+
+## 0. The sharpened research spine
+
+The original question — "do curated skills help statistical analysis?" — is largely answered at the
+*general* level by SkillsBench, and the most useful, least-covered contribution this project can make
+is sharper:
+
+> **Skill *delivery mechanism* is a correctness lever, not just a token-budget one.** A correct,
+> generally-relevant skill becomes a *distractor* when force-injected on a task that does not need it;
+> agent-activated delivery's *selectivity* is what makes skills net-positive — and the size/direction
+> of this effect interacts with model capability.
+
+This sits precisely at the intersection of two literatures that have not been connected:
+
+- **Distraction.** Irrelevant context degrades reasoning, with a measured dose-response (GSM-IC; and
+  GSM-DC at EMNLP 2025, where accuracy falls as distractor count rises). This line studies distractor
+  *sentences in the problem* — never *skills* or *delivery*.
+- **Progressive disclosure.** The field asserts that injecting full skill bodies causes "context rot"
+  and that detailed instructions "become reasoning noise rather than guidance" — but as *design
+  wisdom*, justified by token economy, **not** measured as a *correctness* effect. Adjacent skills
+  work optimizes *which* skills reach the agent (SkillFlow, SkillRouter measure retrieval/use-rate) or
+  studies skill *generation* (SkillLearnBench) and *security* (Skill-Inject) — none treats
+  preload-vs-activate as a controlled correctness variable.
+
+Our `injected = off + MC − mwu − welch` decomposition is the measured, within-model version of what
+the literature only asserts. (Converging evidence from a different lever: a multi-agent study found
+that giving each task its own worker *insulates the model from context interference* by not diluting
+attention across irrelevant material.) The statistics-trap domain is the **testbed**, not the
+headline — closed-form, method-free, verifiable, with a known structure for *where* a procedure is
+genuinely missing.
+
+**This reframing is the spine; the professor's deliverables (regression, a report, a clickable app)
+ride alongside it on the same core — see §3.**
 
 ---
 
 ## 1. Research framing
 
-**Question.** Do agent skills actually improve statistical data analysis?
-
-**Operationalization (current phase).** Does providing an agent with *curated
-statistics skills* — packaged procedural knowledge loaded at inference time — raise
-its **task pass rate** on statistical data-analysis tasks, relative to (a) no skills
-and (b) self-generated skills (a control that isolates the model's latent knowledge)?
+**Question (operational).** Does the *way* a curated statistics skill is delivered — not at all,
+force-injected, or agent-activated — change an agent's **task pass rate** on inferential-statistics
+tasks, and how does that interact with model capability?
 
 **Positioning against prior work.**
-- SkillsBench (broad, 11 domains): curated skills raised average pass rate by ~16.2
-  percentage points but with wide variance, and 16 of 84 tasks got *worse*;
-  self-generated skills came in slightly negative (~-1.3pp). Notably, a smaller model
-  with curated skills beat a larger model without them.
-- SciVisAgentSkills (scientific data analysis + visualization): skills improved mean
-  task scores, with efficiency effects that depended on the execution harness.
-- DARE (closest neighbor, R statistical ecosystem): gives an agent statistical competence
-  via *distribution-aware retrieval* of CRAN functions — i.e. **declarative** tool-discovery,
-  not curated **procedural** skills, and not a skills-on/off validity study. Evidence the
-  procedural-vs-declarative question is live, not a collision (we seam a skills-vs-RAG
-  comparison into future work).
-- Empirical ceiling to design around: a 2026 multi-model study put frontier LLMs at ~100%
-  on basic statistical *test selection* but diverging on *assumption checking* and
-  *validity*, with separate work flagging *fabrication*. The lift from skills concentrates
-  in assumptions / correction / traps / anti-fabrication, **not** "which test" — which
-  shapes task weighting (§4).
-- Gap we target: a **focused study on inferential statistics**, a domain where the
-  expensive errors are *methodological* (wrong test, unchecked assumptions,
-  overclaiming), evaluated on tasks that do **not** pre-specify the method.
+- SkillsBench (broad, 11 domains): curated skills raised average pass rate ~16.2pp but with wide
+  variance; 16 of 84 tasks got *worse*; self-generated skills ~−1.3pp; a smaller model with skills
+  beat a larger one without.
+- SciVisAgentSkills (scientific analysis + viz): skills improved mean scores, with harness-dependent
+  efficiency effects — and the explicit caution that skills must be studied *with* the harness.
+- DARE (closest neighbor, R ecosystem): statistical competence via *distribution-aware retrieval* of
+  CRAN functions — **declarative** tool-discovery, not curated **procedural** skills, and not a
+  skills-on/off study. (We seam a skills-vs-RAG comparison into future work.)
+- Empirical ceiling to design around: a 2026 multi-model study put frontier LLMs at ~100% on basic
+  *test selection* but diverging on *assumption checking* and *validity*, with separate work flagging
+  *fabrication*. The lift from skills concentrates in assumptions / correction / traps /
+  anti-fabrication — **not** "which test" — which shapes task weighting (§5).
+- Gap we target (§0): the delivery-mechanism-as-correctness-lever question, in a focused inferential
+  domain, on tasks that do **not** pre-specify the method.
 
-**The constraint insight (shapes task design).** Auto-gradable benchmarks like
-InfiAgent-DABench make tasks closed-form partly by baking the method into the task
-constraints (which test, which parameters). That removes the exact decision a
-statistics skill would help with. Running skills-on vs skills-off on method-constrained
-tasks risks measuring nothing. We therefore use **two task arms** (see §4).
+**The constraint insight (shapes task design).** Auto-gradable benchmarks like InfiAgent-DABench make
+tasks closed-form partly by baking the method into the task constraints. That removes the exact
+decision a statistics skill would help with. Running skills-on/off on method-constrained tasks risks
+measuring nothing (confirmed: skills **hurt** −25pp on the constrained arm). We therefore center the
+**trap arm** (§5).
 
-**Scope (LOCKED — focused core).** In scope: inferential statistics — hypothesis
-testing, confidence intervals, effect sizes, assumption checking (normality, variance,
-independence), multiple-comparison correction, basic correlation/association.
-Out of scope for now (future): broad ML/predictive modeling, causal inference,
-Bayesian methods, time-series forecasting, visualization-heavy tasks.
+**Scope (LOCKED — focused core, now including inferential regression).** In scope: inferential
+statistics — hypothesis testing, confidence intervals, effect sizes, assumption checking (normality,
+variance, independence), multiple-comparison correction, correlation/association, **and inferential
+regression: coefficient inference + assumption diagnostics** (heteroskedasticity/robust SEs, omitted-
+variable bias & Simpson's paradox, influential points/leverage, multicollinearity, non-linearity).
+Out of scope: **regression-as-prediction / ML / AutoML**, causal inference beyond confounding
+illustrations, Bayesian methods, time-series forecasting.
 
-**Primary outcome (LOCKED).** Task **pass rate** on closed-form answers.
-Deferred (seamed, not implemented): validity decomposition (method / assumptions /
-interpretation / fabrication), trajectory error-mode classification, and
-integrity-under-pressure probing.
+**Primary outcome (LOCKED).** Task **pass rate** on closed-form answers. Deferred (seamed, not
+implemented): validity decomposition (method / assumptions / interpretation / fabrication), trajectory
+error-mode classification, integrity-under-pressure probing.
 
 ---
 
 ## 2. Design principles
 
-1. **Harness/experiment seam.** Framework code (config, registry, provenance,
-   results, comparison) knows nothing about statistics or skills. Domain code depends
-   on the framework, never the reverse.
-2. **Everything is a toggleable condition.** Skills, model, agent shape, skill
-   resolution level, task arm — all selected by config, never by editing code.
-3. **Trajectories are cached separately from scores.** Re-grading must never require
-   re-running an agent.
-4. **Total provenance.** Every reported number traces to a git SHA + resolved config +
-   model snapshot id + sandbox image digest + dataset hash + seed.
-5. **Distributions over point estimates.** A stochastic agent demands N trials per
-   condition cell and reported variance/CIs.
-6. **Seam the deferred work.** Define interfaces for validity scoring, error-mode
-   classification, and integrity probing now; implement later.
+1. **Harness/experiment seam.** Framework code (config, registry, provenance, results, comparison)
+   knows nothing about statistics, skills, or reporting. Domain code depends on the framework, never
+   the reverse.
+2. **The agent is the system under test and stays untouched.** Reporting, the web app, and the
+   experiment runner are all *consumers* of the agent core, never modifications of it.
+3. **Everything is a toggleable condition.** Delivery, dose, resolution, model, agent shape, task arm
+   — all selected by config, never by editing code.
+4. **Compose and grade from saved trajectories; never re-run the agent.** Scoring, engagement
+   extraction, and report composition are all trajectory consumers.
+5. **Total provenance.** Every reported number traces to a git SHA + resolved config + exact model
+   identifier + sandbox image digest + dataset hash. Every *report* claim traces to the computed
+   observation it came from.
+6. **Distributions over point estimates.** A stochastic agent demands N trials per cell with reported
+   variance/CIs.
+7. **Pre-1.0 latitude (LOCKED).** Nothing is published or in use; reproducibility of *old* runs is
+   explicitly **not** a constraint. We may break schemas, restructure, and delete dead paths to reach
+   the right end-state — used for *correctness/cleanliness*, not as licence to rewrite code that is
+   already good.
+8. **Seam the deferred work.** Define interfaces for validity scoring, error-mode classification, and
+   integrity probing now; implement later.
 
 ---
 
-## 3. Experimental factors (condition matrix)
+## 3. Two tracks on one core
 
-The orchestrator runs the Cartesian product over these axes. Not every axis is swept in
-every campaign; "sweep if time" axes default to a single value.
+The project now has two tracks that **share the agent core** and never touch each other:
+
+- **Research track (the spine).** Closed-form trap tasks → conditions → pass/fail scoring → matrix
+  campaigns. Answers §0.
+- **Deliverable track (the professor's ask).** A regression-capable agent that, from a prompt + a
+  dataset, produces a **traceable report** (§10), usable through a **clickable web app** (§11).
+
+They are not in tension. Regression traps double as both research instrument and deliverable
+substrate (§5). The web app exposes the **skills on/off toggle**, so the deliverable *is* a live
+demonstration of the research finding (§11). The seam (§2) is what lets both ride the same untouched
+agent.
+
+---
+
+## 4. Experimental factors (condition matrix)
+
+The orchestrator runs the Cartesian product over these axes; "sweep if time" axes default to a single
+value. **`delivery` is the headline factor** (it carries §0).
 
 | Factor | Values | Notes |
 |---|---|---|
-| `model` | small + large pair, plus others | Tests "skills substitute for scale" |
-| `skills_mode` | `off` / `curated` / `self_generated` | Core comparison + latent-knowledge control |
-| `skill_resolution` | `L0` / `L1` / `L2` / `L3` | Swept within `curated`; see §5 |
-| `skill_router` | `forced` / `description_match` / `model_choice` | Factor; sweep if time |
+| `model` | Anthropic-first: `haiku` / `sonnet` / `±opus` (native SDK); cross-vendor later | Tests capability interaction + "skills substitute for scale" |
+| `delivery` | `off` / `injected` / `agentic` | **Headline.** off = plain agent; injected = skill body in context; agentic = agent reads skill files on demand |
+| `dose` | `relevant_only` / `all` | **For `injected` only.** The dose-response arm that turns "injection distracts" into a causal test |
+| `resolution` | `L0` / `L1` / `L2` / `L3` | For `injected`; how much of the skill enters context (§6) |
+| `task_arm` | `authored_trap` (primary) / `authored_open` / `adopted_constrained` | See §5 |
 | `agent_arch` | `single` / `reviewer` | Factor; sweep if time |
-| `task_arm` | `adopted_constrained` / `authored_open` / `authored_trap` | See §4 |
-| `trials` | N (e.g. 5) | Fixed temperature; report distributions |
+| `trials` | N (≥20 for headline cells; budget is not a constraint) | Deterministic baselines mean N buys real CI width |
+
+**Concrete arm labels** map onto `(delivery, dose, resolution)` — e.g. the as-built `off`/`L1`/`L2`/
+`agentic` arms are `off`, `injected·all·L1`, `injected·all·L2`, `agentic`. The new `injected·
+relevant_only` arm is the dose-response addition. `self_generated` (content-origin control) remains
+seamed for future work.
 
 ---
 
-## 4. Task model
+## 5. Task model
 
 Three arms, all scored by pass/fail on a closed-form answer:
 
-- **`adopted_constrained`** — external benchmark tasks as-is (start: InfiAgent-DABench;
-  later DSBench, DataSciBench). Method is dictated by constraints. Measures
-  *execution-level* help and connects us to the field's framing.
-- **`authored_open`** — goal stated, method free. The agent must choose the approach.
-  This is where curated skills should earn their keep.
-- **`authored_trap`** — a dataset engineered so the *naive* method reaches the wrong
-  conclusion while the *correct* method reaches a known closed-form answer (e.g.,
-  non-normal data where a t-test misleads but the appropriate test does not). Still
-  pass/fail: the ground-truth answer is the one the correct method yields.
+- **`authored_trap` (primary).** A dataset engineered so the *naive* method reaches the wrong
+  conclusion while the *correct* method reaches a known closed-form answer. Pass/fail: the ground
+  truth is the answer the correct method yields.
+- **`authored_open`.** Goal stated, method free; the agent must choose the approach.
+- **`adopted_constrained`.** External benchmark tasks as-is (method dictated). Kept for comparability;
+  known to be a ceiling/anti-skill arm (−25pp), so it is a control, not a focus.
 
-**Task weighting (informed by the §1 ceiling finding).** Because "which test" is
-near-saturated for frontier models, a mix dominated by test-selection risks a ceiling
-effect — skills-on vs skills-off measuring ~nothing, the same hazard the constrained arm
-carries. The authored set is weighted toward where the methodological errors actually
-live: assumption checking, multiple-comparison correction, the validity-trap arm, and
-anti-fabrication. `authored_trap` is a first-class result, not a late add-on.
+**Regression is the trap engine (the convergence).** Inferential regression is the richest source of
+*missing-procedure* traps in statistics — exactly the kind needed to break the single-task dependency
+(§15). Each is closed-form ("is the effect of X on Y significant?" → Yes-naive / No-correct):
+- omitted-variable bias / **Simpson's paradox** (sign flips after conditioning on a confounder),
+- **heteroskedasticity** (naive SEs significant, robust SEs not),
+- **influential points / leverage** (one point drives the slope),
+- **multicollinearity**, **non-linearity** laundered into a misleading linear slope.
 
-Concrete schema (illustrative):
+This is why broadening the instrument (research) and "regression, specifically" (professor) are the
+**same authoring work**. The matching `regression-diagnostics` skill powers both the traps and the
+deliverable agent.
 
-```python
-from dataclasses import dataclass, field
-from enum import Enum
-from pathlib import Path
-from typing import Protocol
+**Task weighting (informed by the §1 ceiling finding).** Because "which test" is near-saturated for
+frontier models, the authored set is weighted toward where methodological errors live: assumption
+checking, multiple-comparison correction, the regression traps, anti-fabrication. `authored_trap` is a
+first-class result, not a late add-on.
 
-class TaskArm(str, Enum):
-    ADOPTED_CONSTRAINED = "adopted_constrained"
-    AUTHORED_OPEN = "authored_open"
-    AUTHORED_TRAP = "authored_trap"
-
-@dataclass(frozen=True)
-class Dataset:
-    name: str
-    path: Path           # csv/parquet, copied into the sandbox per task
-    sha256: str          # integrity + provenance
-
-@dataclass(frozen=True)
-class ExpectedAnswer:
-    value: object        # ground truth for closed-form scoring
-    kind: str            # "numeric" | "categorical" | "set" | "regex"
-    tolerance: float | None = None     # numeric comparison tolerance
-    format_spec: str | None = None     # required output format, if any
-
-@dataclass(frozen=True)
-class Task:
-    id: str
-    arm: TaskArm
-    prompt: str
-    datasets: tuple[Dataset, ...]
-    concepts: tuple[str, ...]          # e.g. ("two_sample_test", "normality")
-    method_specified: bool             # True only for the constrained arm
-    expected: ExpectedAnswer
-    verifier: str                      # registry key for a Verifier
-    constraints: str | None = None     # method/workflow restrictions, if any
-    difficulty: str | None = None
-    source: str | None = None          # provenance: dabench id, "authored", ...
-    metadata: dict = field(default_factory=dict)
-
-class Verifier(Protocol):
-    def score(self, submitted: str, task: Task) -> "Verdict": ...
-```
-
-External benchmarks are normalized into `Task` via per-benchmark adapters; we never
-fork their formats into our code.
+*(The `Task` / `Dataset` / `ExpectedAnswer` / `Verifier` schema is unchanged from the as-built version
+— see [ARCHITECTURE.md](ARCHITECTURE.md). Regression traps are normal `authored_trap` entries with
+deterministic datasets generated by `scripts/gen_authored_data.py`.)*
 
 ---
 
-## 5. Skill model
+## 6. Skill model
 
-A skill is a folder: `SKILL.md` (YAML frontmatter + markdown body) plus optional
-bundled scripts/references. The **progressive-disclosure loader is ours**, so we
-control exactly what enters the context window at each level — this is the ablation
-axis SkillsBench found mattered most (the jump from examples to bundled resources).
-
-**Stay on the open standard.** Authored skills are valid Anthropic Agent-Skills folders
-so they stay portable and comparable to the ecosystem: required frontmatter is `name`
-(≤64 chars, lowercase/digits/hyphens) and `description` (≤1024 chars, stating *what it
-does and when to use it*); optional bundled `scripts/`, `references/`, `assets/`. The
-L0–L3 loader is an ablation layer *on top of* the standard — the standard defines the
-artifact, the loader controls how much of it enters context.
+A skill is a valid **Anthropic Agent-Skills folder** (portable, ecosystem-comparable): required
+frontmatter `name` (≤64 chars) and `description` (≤1024 chars, *what it does and when to use it*);
+optional bundled `scripts/`, `references/`, `assets/`. The **progressive-disclosure loader is ours**,
+an ablation layer *on top of* the standard, controlling exactly what enters context per level:
 
 | Level | Payload entering context |
 |---|---|
 | `L0` | name + description only (discovery surface) |
-| `L1` | + `SKILL.md` body (instructions) |
+| `L1` | + `SKILL.md` body |
 | `L2` | + inline executable examples |
 | `L3` | + bundled scripts / reference resources |
 
-```python
-class SkillResolution(int, Enum):
-    L0 = 0; L1 = 1; L2 = 2; L3 = 3
+Under `agentic` delivery the agent instead *reads* skill files from the sandbox on demand (selective
+by construction — this is the mechanism the headline measures). Under `injected` delivery the loader
+renders the chosen level directly into context.
 
-@dataclass(frozen=True)
-class SkillResource:
-    relative_path: str
-    kind: str            # "script" | "reference"
+**Skill library.** As built: test selection · assumption checks · multiple-comparison correction ·
+effect-size/CI reporting · anti-fabrication ("never report a statistic you did not compute"). **To
+add: `regression-diagnostics`** (assumption checks + robust SEs + confounding/leverage/collinearity
+procedure), serving both the regression traps and the deliverable agent.
 
-@dataclass(frozen=True)
-class Skill:
-    name: str
-    description: str                       # frontmatter; the L0 discovery surface
-    body: str                              # L1
-    examples: tuple[str, ...]              # L2
-    resources: tuple[SkillResource, ...]   # L3
-    path: Path
-
-class SkillLoader(Protocol):
-    def render(self, skill: Skill, level: SkillResolution) -> str:
-        """Exact context payload for a disclosure level."""
-
-class SkillRouter(Protocol):
-    def select(self, task: Task, library: "SkillLibrary") -> list[Skill]:
-        """forced/oracle | description_match | model_choice"""
-```
-
-**`self_generated` condition.** Before solving, the agent is prompted to write its own
-procedural notes for the task; those notes are injected in place of a curated skill.
-This isolates whether the benefit comes from the *curated content* or merely from
-*thinking procedurally* (prior work found self-generated skills do not help).
-
-**Starter statistics skill library (initial set to author).**
-test selection (continuous two-group / paired / >2 groups / categorical) ·
-assumption checking before a parametric test (normality, equal variance,
-independence) and the nonparametric fallback · multiple-comparison correction ·
-effect size + confidence interval reporting · "never report a statistic you did not
-compute in code" (anti-fabrication procedure).
+*(`SkillResolution` / `Skill` / `SkillLoader` / `SkillRouter` schema unchanged — see ARCHITECTURE.md.
+`self_generated` content control remains seamed for future work.)*
 
 ---
 
-## 6. Agent
+## 7. Agent & model access
 
-ReAct-style loop: **plan → write code → execute → observe → iterate**, with a
-configurable step budget. This mirrors the loop shape used by data-analysis agent
-frameworks. Default is single-agent; a `reviewer` variant (statistician + reviewer)
-is swappable as a factor.
+ReAct/CodeAct loop: **plan → write code → execute → observe → iterate**, configurable step budget,
+single-agent default (`reviewer` variant swappable). Context assembly is explicit and inspectable
+(system prompt + task + optional skill payload + scratchpad/observations). The **action protocol is
+harness-parsed (LOCKED — not provider-native tool-calling):** the model emits a fenced Python code
+action the harness runs in the sandbox. This is robust across providers and matches the dominant
+data-analysis agent shape.
 
-- **Model access goes through EdenAI** (a hard project constraint — see §6.1). The
-  client exposes a provider-agnostic interface internally so the rest of the harness is
-  unaware of the gateway; `model` factor values are EdenAI-routed model identifiers.
-- **Explicit, inspectable context assembly:** system prompt + task + optional skill
-  payload + running scratchpad/observations.
-- **Harness-controlled action protocol (LOCKED — not provider-native tool-calling):**
-  the model emits a fenced Python code action that the harness parses and runs in the
-  sandbox, rather than a provider's function-calling API. This is robust regardless of
-  which sub-provider EdenAI routes to (§6.1) and matches the dominant DABench-style
-  data-analysis agent shape. The `uwf-rag-experiments` ReAct loop is reused for **loop
-  shape only** (plan→act→observe, step budget, forced-final); its native `bind_tools`
-  path is deliberately *not* carried over.
-- **Trajectory log:** every step records thought, action/code, observation, token
-  usage. The final closed-form answer is extracted for scoring.
+**Model access (LOCKED — EdenAI retired).** EdenAI was the original gateway but ended up credit-
+blocked and unused; under the pre-1.0 latitude (§2.7) it is **dropped as dead weight**. A thin
+internal `LLMClient` wraps backends:
+- **`anthropic`** — native Anthropic SDK, the frontier instrument (`haiku`/`sonnet`/`opus`).
+- **`ollama`** — local, keyless, for offline/free iteration.
+- **cross-vendor (future)** — added via direct provider SDKs (OpenAI/Google) for external validity,
+  behind the same `LLMClient`; the rest of the harness never imports a provider SDK.
 
-### 6.1 LLM access via EdenAI
-
-EdenAI is the required model gateway for this research team; a single `EDENAI_API_KEY` is
-the only credential. **Decision (LOCKED): use EdenAI's OpenAI-compatible endpoint via the
-official `openai` SDK** — not the legacy `langchain-community` `ChatEdenAI` wrapper the RAG
-repo used. This drops a heavy dependency and gives direct control over parameters and
-provenance:
-
-```python
-from openai import OpenAI
-client = OpenAI(api_key=os.environ["EDENAI_API_KEY"],
-                base_url="https://api.edenai.run/v3")
-resp = client.chat.completions.create(
-    model="openai/gpt-4o",                  # provider/model — the routed identifier
-    messages=[...], temperature=0, max_tokens=...,
-)
-```
-
-Constraints the design respects:
-
-- **Provider-agnostic above the client.** A thin internal `LLMClient` wraps the SDK call;
-  the rest of the harness never imports `openai`. `model` factor values are the routed
-  `provider/model` strings (`openai/gpt-4o`, `anthropic/claude-sonnet-4-5`, …).
-- **Provenance for free.** The `provider/model` string *is* the exact routed identifier
-  (§9), and the response carries `usage.{prompt,completion,total}_tokens` — recorded per
-  call.
-- **No dependence on native tool-calling or structured output.** The ReAct loop uses the
-  harness-parsed code action (§6), so per-sub-provider tool-calling support is irrelevant.
-- **`seed` is undocumented on EdenAI — verify empirically per model.** Until confirmed,
-  reproducibility rests on fixed temperature + N trials + reported distributions (§9), not
-  seeds. Also verify temperature/max_tokens pass-through for each model in the small+large
-  pair.
-- The RAG repo's `core/retry.py` (tenacity transient-retry) and its best-effort
-  usage-extraction pattern are worth porting; its `ChatEdenAI` wrapper is not.
-
-A **local Ollama** provider is also supported through the same OpenAI-compatible client
-(`provider: ollama`, keyless) for offline / credit-free development; EdenAI remains the
-default and the required gateway for the research runs.
+`model` factor values are explicit provider model identifiers; provenance records the exact model
+string + API version + token usage per call (§12). Worth porting from the RAG repo: transient-retry
+(`tenacity`) and best-effort usage extraction.
 
 ---
 
-## 7. Sandbox / execution
+## 8. Sandbox / execution
 
 Executing model-generated code is the security- and reproducibility-critical layer.
 
-- **Default:** a pinned Docker image running a **stateful Jupyter kernel** (namespace
-  retained between steps, so the agent fixes only the erroneous code next iteration —
-  like notebook cells). A **fresh kernel per task** for isolation and reproducibility.
-- Resource and wall-clock limits per execution; pinned library versions baked into the
-  image; the **image digest is recorded in provenance** (so "scipy chose this default"
-  stays reproducible).
-- **Executor interface** so a managed backend (e.g. an E2B/Firecracker microVM with a
-  Jupyter server) can be swapped in without touching agent code.
-- **Reference architectures (don't reinvent):** DSGym runs each agent trajectory in a
-  dedicated Jupyter kernel inside a fresh per-trajectory worker container (manager→worker)
-  — exactly our "fresh kernel per task"; AutoGen's stateful Jupyter executor is a reference
-  for the kernel-session mechanics. Isolation tiers, weakest→strongest: plain Docker
-  (shared kernel, our default) → gVisor (syscall-level) → microVM (Firecracker/E2B,
-  hardware-level) for untrusted/multi-tenant runs.
+- **Default:** a pinned Docker image running a **stateful Jupyter kernel** (namespace retained between
+  steps); **fresh kernel per task** for isolation. Resource + wall-clock limits; pinned library
+  versions; **image digest recorded in provenance**.
+- **+ matplotlib** in the image (new), so the agent can produce regression diagnostic figures
+  (residuals-vs-fitted, QQ, leverage) for the report (§10).
+- **Executor interface** so a managed backend (E2B/Firecracker microVM) can be swapped in untouched.
+- **Reference architectures (don't reinvent):** DSGym's manager→worker fresh-kernel-per-trajectory
+  sandbox; AutoGen's stateful Jupyter executor. Isolation tiers weakest→strongest: plain Docker
+  (default) → gVisor → microVM (for untrusted/multi-tenant).
 
-```python
-class Executor(Protocol):
-    def start(self, datasets: tuple[Dataset, ...]) -> "Session": ...
-class Session(Protocol):
-    def run(self, code: str) -> "ExecResult":   # stdout, stderr, artifacts
-        ...
-    def close(self) -> None: ...
+*(`Executor` / `Session` protocol unchanged — see ARCHITECTURE.md.)*
+
+---
+
+## 9. Evaluation (current = pass rate) + engagement as a first-class metric
+
+- **Deterministic verifier:** numeric-tolerance / regex / exact / set match on the closed-form answer.
+  Markdown-tolerant. No external model required.
+- **Metrics:** pass rate; for multi-part tasks all-or-nothing and proportional-by-subquestion scores;
+  per-condition deltas with bootstrap CIs; token/step efficiency per condition.
+- **Engagement (NEW — closes the one real rigor gap).** Skill engagement currently lives only in raw
+  trajectories (`open("skills/<name>.md")` actions) and is recovered by hand. Add a stdlib-only
+  **engagement extractor** in `evaluation/` that scans saved trajectories into per-`(task, trial)`
+  skill-read records and folds them — plus the **read×pass contingency** — into the results schema as
+  versioned artifacts. This turns "selective engagement" from a narrative into a measurement, and
+  (with the higher N of §15) powers the per-trial mechanism the headline currently can't support.
+- **Seams left for deferred work (interfaces only):** `ValidityScorer`, `ErrorModeClassifier`,
+  `IntegrityProbe`.
+
+---
+
+## 10. Reporting layer (NEW — deliverable track)
+
+A new `src/statskills/reporting/` module, the **sibling of `evaluation/`**: where evaluation *scores*
+a trajectory, reporting *narrates* one. It is a pure trajectory consumer — it **never re-runs the
+agent**.
+
+- **Structured + schema-defined.** The report is a typed object with sections: question & data summary
+  → method chosen and why → assumption checks performed and their results → results with effect sizes
+  and uncertainty → interpretation → caveats. (Mirrors the current report-generation pattern of a
+  structured-output schema filled by the model, rather than one free-form blob.)
+- **Traceable.** Every quantitative claim carries a pointer to the computed observation it came from —
+  the `anti-fabrication` skill expressed as an *output contract*. The report cannot state a number the
+  agent did not compute; the reader can click any value back to the code that produced it. (Mirrors
+  clinical report-gen systems' inline source indices + a decoupled interactive front end.)
+- **Figures.** For regression, the agent emits residuals-vs-fitted, QQ, and leverage/influence plots
+  as part of its assumption checks; the composer embeds them (needs matplotlib, §8) so the diagnostic
+  is *visible*.
+- **Output.** A structured object the web app renders richly, plus a rendered Markdown/HTML artifact
+  for sharing (PDF optional).
+
+---
+
+## 11. Web app & monorepo topology (NEW — deliverable track)
+
+**Topology decision (LOCKED): single monorepo, hard internal boundary.** The library is the
+importable core; the web app is a deploy-only area that depends *inward*. Rationale: app and core
+co-evolve constantly for a solo researcher, so atomic commits beat a publish-bump-reinstall dance
+across two repos; nothing is published and old-version reproducibility is off the table (§2.7), so the
+usual reasons to split do not apply. The boundary that matters is the **dependency rule at repo
+scale:** `web → api → statskills`, never the reverse. The research harness and stdlib-only
+`evaluation/` must keep working with **zero web dependencies installed** (own manifests, own CI jobs;
+the JS stack never touches the core).
+
+**Backend shape.** An agent run is many sandboxed steps over seconds–minutes, so it cannot be a
+blocking endpoint: submit a run (prompt + uploaded dataset + skill config) → background **job** →
+the agent's steps **stream** to the client (server-sent events; WebSockets unnecessary) → on
+completion the client fetches the composed report. At single-user research scale, **FastAPI
+background tasks + an in-process job registry** suffice — *no Celery/Redis*. The existing Docker
+sandbox already handles the RCE concern of running user-prompted code on user-uploaded data; the
+backend enforces upload-size, wall-clock, and concurrency limits.
+
+**The toggle is the demo.** The UI exposes **skills off/on** (and ideally delivery: off / injected /
+agentic). Running the same regression with skills off vs agentic, and *watching* the assumption check
+appear and the conclusion change, makes the deliverable and the research narrative the **same
+artifact** — the best possible outcome for two supposedly-orthogonal asks.
+
+---
+
+## 12. Reproducibility & provenance
+
+Per-run record (alongside results): git SHA, fully resolved config, the **exact model identifier
+(provider + model + API version)**, sandbox image digest, dataset hashes, temperature, token usage,
+timestamps. **Trajectories and scores stored separately** so re-grading/re-reporting is free. No
+provider passes a usable seed, so reproducibility rests on fixed temperature + N trials + reported
+distributions; frontier models are not deterministic even at temperature 0 — which is what produced
+meaningful CIs. (Pre-1.0: provenance is for *current* defensibility, not migration of old runs.)
+
+---
+
+## 13. Carrying forward proven patterns from the RAG repo
+
+The reusable *patterns* (not RAG code) remain the asset: the `extends:` YAML config system, the
+decorator-based component registry, the run-metadata/provenance schema, the results/comparison engine,
+the tooling/CI/QA gate. These live in an internal `core/` that knows nothing about statistics, skills,
+or reporting.
+
+---
+
+## 14. Directory structure (monorepo target)
+
+> For the module-by-module layout **as built**, ARCHITECTURE.md is the source of truth. This is the
+> *target* topology after the deliverable track lands.
+
+```
+statistical-agent-skills/                 # monorepo
+├─ pyproject.toml  uv.lock  Makefile  .pre-commit-config.yaml   # statskills core
+├─ src/statskills/
+│   ├─ core/         # config, registry, provenance, results, compare (project-agnostic)
+│   ├─ tasks/        # schema + adapters/ + authored/ (+ inferential-regression traps)
+│   ├─ agent/        # CodeAct loop, context, LLMClient (anthropic | ollama | future)  — UNCHANGED core
+│   ├─ skills/       # parser, L0–L3 loader, router/, library/ (+ regression-diagnostics)
+│   ├─ sandbox/      # stateful Jupyter-in-Docker (+ matplotlib), Executor/Session
+│   ├─ evaluation/   # verifiers, metrics, + engagement extractor + read×pass   (stdlib-only)
+│   ├─ reporting/    # NEW: trajectory → structured, traceable report with figures
+│   └─ experiments/  # condition-matrix runner, trial mgmt, caching
+├─ configs/  scripts/  tests/  data/  results/      # trajectories/ and scores/ separate
+└─ apps/
+    ├─ api/          # FastAPI backend; imports statskills; background jobs + SSE
+    └─ web/          # clickable UI (own package.json); skills/delivery toggle
+.github/workflows/   # core QA gate (py) + api checks + web build/lint as SEPARATE jobs
 ```
 
 ---
 
-## 8. Evaluation (current = pass rate)
+## 15. Build roadmap
 
-- **Deterministic verifier:** numeric-tolerance / regex / exact / set match on the
-  closed-form answer. No external model required.
-- **Metrics:** pass rate; for multi-part tasks an all-or-nothing per-question score and
-  a proportional-by-subquestion score; per-condition deltas with confidence intervals;
-  token/step efficiency per condition.
-- **Seams left for deferred work (interfaces only):** `ValidityScorer` (method /
-  assumptions / interpretation / fabrication), `ErrorModeClassifier` over trajectories,
-  `IntegrityProbe` (does a correct conclusion survive leading pressure).
+### History (as built; the path diverged from the plan where evidence demanded)
 
----
-
-## 9. Reproducibility & provenance
-
-Per-run record (written alongside results): git SHA, fully resolved config, the exact
-EdenAI-routed model identifier (provider + model + version), sandbox image digest,
-dataset hashes, seeds, temperature, token usage, timestamps. **Trajectories and scores
-are stored separately** so re-grading is free.
-LLM nondeterminism is handled by fixed temperature + N trials + reported distributions;
-we note explicitly that even temperature 0 is not fully deterministic across API calls.
-
----
-
-## 10. Carrying forward proven patterns from the RAG repo
-
-The `uwf-rag-experiments` repo already solved several things well, and those *patterns*
-— not the RAG-specific code — are the asset worth reusing: the YAML config system with
-`extends:` inheritance and resolution; the decorator-based component registry; the
-run-metadata/provenance schema; the results format and comparison engine; and the
-tooling/CI/QA gate.
-
-**Implementer's latitude.** Bringing over scaffolding files (`Makefile`,
-`pyproject.toml`, `.pre-commit-config.yaml`, the CI workflow, and similar) as starting
-points and adapting them to this project is encouraged, but *which* files to port and
-how to edit them is **delegated to the implementer's judgment** rather than prescribed
-here. The reference implementation is the RAG repo.
-
-These cross-cutting concerns naturally live in an internal `core/` module (config,
-registry, provenance, results, compare) that knows nothing about statistics or skills.
-Whether that core is ever factored into a separately installable package shared across
-repos is a **future decision, not a phase-1 requirement** — this repo is self-contained.
-
----
-
-## 11. Directory structure (locked for phase 1)
-
-> This is the *original* phase-1 sketch. For the actual layout and module-by-module
-> responsibilities **as built**, see [ARCHITECTURE.md](ARCHITECTURE.md) (the source of truth);
-> the tree below is kept for historical context.
-
-```
-statistical-agent-skills/         # importable package: src/statskills/ · Python 3.13
-  pyproject.toml  uv.lock  .python-version  Makefile  .pre-commit-config.yaml
-  .github/workflows/        # CI: qa gate (fmt, ruff, mypy, tests)
-  ARCHITECTURE.md
-  src/statskills/           # replaces the RAG repo's ragbench package
-    core/                   # config, registry, provenance, results, compare (project-agnostic)
-    tasks/
-      schema.py             # Task, Dataset, ExpectedAnswer, Verifier
-      adapters/             # dabench.py, dsbench.py, datascibench.py -> Task
-      authored/             # underspecified + validity-trap task specs
-    agent/
-      loop.py               # ReAct plan/code/execute/observe
-      context.py            # explicit context assembly
-      models/               # provider-agnostic LLM clients
-      multiagent/           # statistician + reviewer variant (optional)
-    skills/
-      parser.py             # SKILL.md (frontmatter + body + resources)
-      loader.py             # progressive disclosure, L0..L3 control
-      router/               # forced | description_match | model_choice
-      library/              # the statistics skills (each its own folder)
-    sandbox/
-      base.py               # Executor / Session interfaces
-      jupyter_docker.py     # default: stateful kernel in pinned image
-      e2b.py                # optional managed backend
-    evaluation/
-      verifiers/            # deterministic closed-form checks
-      metrics.py            # pass rate, deltas, efficiency
-      _deferred/            # ValidityScorer/ErrorModeClassifier/IntegrityProbe seams
-    experiments/
-      matrix.py             # condition-matrix runner, trial mgmt, caching
-  configs/
-    base.yaml
-    experiments/            # extends: base; one factor per file
-  scripts/
-    run_experiment.py  compare.py  grade_trajectories.py  make_figures.py
-  tests/
-  results/                  # trajectories/ and scores/ kept separate
-  data/
-    benchmarks/  authored/  cache/
-```
-
----
-
-## 12. Build roadmap (phased)
-
-- **Phase 0 — Foundation & repo reconciliation.** The repo is currently a half-merged
-  FastAPI template + RAG carryover; reconcile it: **delete** the FastAPI app
-  (`src/app/main.py`, `tests/test_app.py`, the uvicorn `Dockerfile`); **rewrite**
-  `pyproject.toml` (drop faiss/ragas/chromadb/sentence-transformers/bm25s/pymupdf; rename
-  the package `ragbench`→`statskills`; declare the **foundation** deps now —
-  pydantic/pyyaml/python-dotenv/tenacity/rich — with the scientific stack
-  (numpy/scipy/pandas/statsmodels), `openai`, and a sandbox dep added as their modules
-  land in Phase 1+, so each phase's deps are justified by its code); **keep** the
-  `.pre-commit-config.yaml`, CI workflow, and `.gitignore`. **Pin Python 3.13** — 3.11
-  hits EOL Oct 2026 and statsmodels has no 3.14 wheels yet, so 3.13 is the supported
-  sweet spot (full numpy/scipy/pandas/statsmodels support; EOL Oct 2029). **Port** the
-  proven `core/` patterns (`registry.py`, the `extends:` config loader, `git.py`
-  provenance, `retry.py`) under `statskills`; the neutral message/result types follow
-  with the agent layer (Phase 1). Rewrite the README and add `.env.example` with
-  `EDENAI_API_KEY`.
-Status as built (results in [FINDINGS.md](FINDINGS.md)); the path diverged from the original plan
-where the evidence demanded it.
-
-- **Phase 0–1 — Foundation + vertical slice. ✅** Repo reconciled to `statskills`; sandbox +
-  single-agent CodeAct loop validated end-to-end.
-- **Phase 2 — Scoring + baseline. ✅** Deterministic closed-form verifier + pass-rate/N-trial
-  metrics + DABench adapter.
+- **Phase 0–1 — Foundation + vertical slice. ✅** Repo reconciled to `statskills` (FastAPI template +
+  RAG carryover removed); sandbox + single-agent CodeAct loop validated end-to-end. Python 3.13.
+- **Phase 2 — Scoring + baseline. ✅** Deterministic closed-form verifier + pass-rate/N-trial metrics
+  + DABench adapter.
 - **Phase 3 — Skills. ✅** Parser/loader (L0–L3) + `forced` router + five statistics skills;
-  `curated` vs `off`. *Finding:* on the **constrained** arm skills **hurt** (−25pp) — method baked
-  in → payload distracts. Motivated the trap arm.
-- **Phase 4 — Trap arm. ✅** Authored the 5 validity-trap tasks + the N-trials/bootstrap-CI harness.
-- **Phase 5 — Scale the matrix. ✅ (with a pivot).** Built the condition-matrix runner and swept
-  `{7B,14B} × {off,L1,L2}`, then added **agent-activated (`agentic`) delivery** and a model axis.
-  *Findings:* local models give a fragile, selection-only 7B/L1 win, and **never invoke agentic
-  skills (0/55)** — skill invocation is emergent above local scale. So a **frontier provider
-  (Claude, native SDK)** was added; **Haiku 4.5: agentic 72% beats off 60% (+12pp [+4,+20]) and
-  beats injected 56% — injected itself lands ≈ off (−4pp, n.s.).** Not
-  built from the original plan: the `self_generated` control. Bonus: a clean-architecture pass
-  (run orchestration lifted into the library; configs DRY'd) + a Markdown-tolerant verifier.
-- **Phase 6 — Analysis & writeup. ◐ (in progress).** This documentation pass (ARCHITECTURE,
-  FINDINGS, README, CLAUDE). **Recommended next experiments, in priority order:**
-  1. **Model axis** — `{Haiku, Sonnet, ±Opus} × {off, L1, agentic}` to test whether **agentic
-     delivery's edge over both off and injection** holds across frontier capability (most publishable).
-  2. **Task design** — build the `authored_open` arm / a deliberation-forcing `correlation` framing,
-     to attack the one residual gap (every model fast-paths the trivially-phrased correlation trap).
-  3. **More N on Haiku** to tighten the +12% CI and confirm the injection-distraction effect.
-  4. Figures (`make_figures.py`) for the writeup.
-- **Future (seamed).** `self_generated` control; `description_match`/`model_choice` routers;
-  validity decomposition, error-mode classification, integrity probing (`evaluation/_deferred.py`);
-  multi-agent sweep; skills-vs-RAG (procedural vs declarative).
+  `curated` vs `off`. *Finding:* on the **constrained** arm skills **hurt** (−25pp) — method baked in
+  → payload distracts. Motivated the trap arm.
+- **Phase 4 — Trap arm. ✅** Five validity-trap tasks + the N-trials/bootstrap-CI harness.
+- **Phase 5 — Scale the matrix. ✅ (with a pivot).** Condition-matrix runner; swept `{7B,14B} ×
+  {off,L1,L2}`, then added **agentic** delivery and a model axis. *Findings:* local models give a
+  fragile selection-only 7B/L1 win and **never invoke agentic skills (0/55)** — invocation is emergent
+  above local scale. Added a **frontier provider (Claude, native SDK)**; **Haiku 4.5: agentic 72% >
+  off 60% (+12pp [+4,+20]) > injected 56% (injected ≈ off, n.s.).** Bonus: clean-architecture pass +
+  Markdown-tolerant verifier.
+
+### Forward plan (foundation-first — perfect the instrument before the headline campaign)
+
+Build **and smoke-validate** each step; the full results campaign waits until the instrument is broad
+and the metrics are first-class. (Smoke/sanity runs to confirm a phase works are encouraged; the
+deadline is not close, so quality wins over speed.)
+
+1. **Engagement as a first-class metric (§9).** Extractor + read×pass into the results schema. Cheap;
+   unblocks an honest mechanism claim. *(Use the pre-1.0 latitude to redefine the results schema
+   cleanly rather than appending.)*
+2. **Broaden the instrument with inferential-regression traps (§5).** Breaks the single-task
+   dependency *and* serves the professor. Author the regression traps + the `regression-diagnostics`
+   skill.
+3. **Injection dose-response arm (§4).** `injected · relevant_only` vs `injected · all`. Turns
+   "injection distracts" into a causal, dose-response test (bridges to GSM-DC).
+4. **Reporting layer (§10).** Trajectory → structured, traceable report with figures; validate on
+   regression cases.
+5. **Web app (§11).** `apps/api` (jobs + SSE) then `apps/web` (clickable UI with the skills/delivery
+   toggle).
+6. **Headline campaign.** `{haiku, sonnet, ±opus} × {off, injected·all, injected·relevant, agentic}`
+   over the broadened task set at N≥20 — generalization across capability, on an instrument that no
+   longer rests on one task. Then `make_figures.py` for the writeup.
+
+### Future (seamed)
+
+`self_generated` content control; `description_match` / `model_choice` routers; validity
+decomposition, error-mode classification, integrity probing; multi-agent sweep; cross-vendor models;
+skills-vs-RAG (procedural vs declarative).
 
 ---
 
-## 13. Deferred / open decisions
+## 16. Open decisions
 
-Resolved since the original plan:
-- **Provider/model set.** EdenAI ended up **credit-blocked**, so the actual instruments are local
-  **Ollama** (qwen2.5-coder 7B/14B, qwen3-14B) for cheap iteration and **Claude Haiku 4.5** (native
-  Anthropic SDK) as the frontier model. EdenAI remains wired but unused.
-- **Numeric tolerance.** Per-`AnswerKey` tolerance on the closed-form verifier (e.g. trap
-  correlation ±5e-3; discrete counts ±1e-9).
-- **Authored task sourcing.** 5 validity-trap datasets generated deterministically by
-  `scripts/gen_authored_data.py`; the `authored_open` arm is still to be built (Phase 6).
-- **Seeds.** No provider passes a usable seed, so reproducibility rests on fixed temperature + N
-  trials (bootstrap CIs are themselves seeded). Note frontier models are *not* deterministic even at
-  temp 0 — which is what finally produced meaningful CIs.
-
-Still open:
-- The frontier model axis (which tiers beyond Haiku) and N for the headline campaign.
+- Frontier tiers beyond Haiku for the headline campaign (Sonnet certainly; Opus if warranted) and
+  exact N.
+- How many regression traps to author to make the effect rest on ≥6–8 procedures rather than one.
 - Whether the `correlation` gap closes under a deliberation-forcing task framing.
+- Report output: confirm figures are wanted (assumed yes — regression makes them worthwhile); PDF
+  export optional.
+- Web UI stack specifics (framework, styling) — deferred to implementation; the contract (jobs + SSE +
+  toggle, inward dependency rule) is what's locked.
 
 ---
 
 ## References
 
-- SkillsBench: Benchmarking Agent Skills for Frontier LLM Agents — skillsbench.ai;
-  arXiv 2602.12670.
+- SkillsBench — skillsbench.ai; arXiv 2602.12670.
 - SciVisAgentSkills — arXiv 2606.05525.
 - "When Skills Don't Help" (negative result, offensive cybersecurity) — arXiv 2605.20023.
-- InfiAgent-DABench — arXiv 2401.05507; infiagent.github.io.
-- DSBench — arXiv 2409.07703. DataSciBench — arXiv 2502.13897.
-- Anthropic Agent Skills open standard — agentskills.io; github.com/anthropics/skills;
-  SKILL.md spec at platform.claude.com/docs (agent-skills).
-- DARE: distribution-aware retrieval for the R statistical ecosystem — arXiv 2603.04743.
-- DSGym: evaluating/training data-science agents; fresh-kernel-per-trajectory sandbox —
-  arXiv 2601.16344.
-- LLM statistical test-selection vs assumption/validity quality (the ceiling finding) —
-  PMC12627256 (NCBI).
-- AutoGen Jupyter Code Executor — stateful-kernel reference (microsoft.github.io/autogen).
-- EdenAI OpenAI-compatible chat endpoint — docs.edenai.co (`/v3` base URL, `provider/model`).
+- Agent Skills for LLMs: Architecture, Acquisition, Security (the "context rot / reasoning noise"
+  framing) — arXiv 2602.12430.
+- Externalization in LLM Agents (progressive disclosure as reasoning-noise mitigation) — arXiv 2604.08224.
+- GSM-DC: distraction dose-response in reasoning — arXiv 2505.18761 (EMNLP 2025); GSM-IC: Shi et al. 2023.
+- SkillFlow (skill retrieval/use-rate) — arXiv 2504.06188; SkillRouter — arXiv 2603.22455;
+  SkillLearnBench — arXiv 2604.20087; Skill-Inject — arXiv 2602.20156.
+- Multi-agent insulation from context interference — medRxiv 2025.08.22.25334049.
+- InfiAgent-DABench — arXiv 2401.05507. DSBench — arXiv 2409.07703. DataSciBench — arXiv 2502.13897.
+- DARE (R ecosystem, distribution-aware retrieval) — arXiv 2603.04743.
+- DSGym (fresh-kernel-per-trajectory sandbox) — arXiv 2601.16344. AutoGen Jupyter executor —
+  microsoft.github.io/autogen.
+- LLM statistical test-selection vs assumption/validity quality (ceiling finding) — PMC12627256.
+- Anthropic Agent Skills open standard — agentskills.io; github.com/anthropics/skills.
+- Report-generation patterns: structured-output schema (LlamaIndex); two-layer structured-summary +
+  interactive front end with traceability (clinical RAG+LLM report gen, MDPI AI 6(8):188).
