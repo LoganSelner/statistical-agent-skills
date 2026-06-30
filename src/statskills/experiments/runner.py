@@ -25,6 +25,7 @@ from typing import Any
 
 from statskills.agent.llm import LLM, build_llm, resolve_llm_config
 from statskills.agent.loop import ReActAgent
+from statskills.agent.trajectory import Trajectory
 from statskills.core.config import load_yaml_with_inheritance
 from statskills.core.provenance import RunProvenance
 from statskills.sandbox.base import Executor
@@ -50,29 +51,40 @@ def _build_executor(
     return executor, executor.image_digest
 
 
+def run_with_skills(
+    agent: ReActAgent, task: Task, skill_ctx: SkillContext | None
+) -> Trajectory:
+    """Run ``task``, delivering skills per ``skill_ctx`` (``None`` → the plain no-skills
+    agent). This is the off/injected/agentic dispatch — the single place that maps a
+    resolved skills condition onto :meth:`ReActAgent.run`'s ``skill_payload`` vs
+    ``skill_discovery``+``skill_files`` arguments. Shared by the matrix runner (below)
+    and the web backend (``apps/api``) so the dispatch can never drift between them.
+    """
+    selection = skill_ctx.resolve(task) if skill_ctx else None
+    if selection is None or skill_ctx is None:
+        return agent.run(task)
+    if skill_ctx.delivery == "agentic":
+        return agent.run(
+            task, skill_discovery=selection.discovery, skill_files=selection.files
+        )
+    return agent.run(task, skill_payload=selection.payload)
+
+
 def _run_one(
     agent: ReActAgent, task: Task, skill_ctx: SkillContext | None, trial: int
 ) -> dict[str, Any]:
     """Run one (trial, task); return its trajectory record tagged with the trial."""
-    selection = skill_ctx.resolve(task) if skill_ctx else None
     try:
-        if selection is None or skill_ctx is None:
-            traj = agent.run(task)
-        elif skill_ctx.delivery == "agentic":
-            traj = agent.run(
-                task,
-                skill_discovery=selection.discovery,
-                skill_files=selection.files,
-            )
-        else:
-            traj = agent.run(task, skill_payload=selection.payload)
+        traj = run_with_skills(agent, task, skill_ctx)
     except Exception as exc:
         logger.exception("Task %s (trial %d) failed", task.id, trial)
         return {"task_id": task.id, "trial": trial, "error": str(exc)}
     record = traj.to_dict()
     record["trial"] = trial
-    if selection is not None:
-        record["skills"] = list(selection.names)
+    if skill_ctx is not None:
+        # Per-task provenance: the skills the router selected. resolve() is pure, so
+        # re-deriving the names here matches what run_with_skills used for delivery.
+        record["skills"] = list(skill_ctx.resolve(task).names)
     return record
 
 
