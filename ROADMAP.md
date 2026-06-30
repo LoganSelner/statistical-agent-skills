@@ -425,13 +425,18 @@ deadline is not close, so quality wins over speed.)
    routing*, not "agentic" per se — Haiku under-reads (selective, agentic wins), Sonnet over-reads
    (non-selective, agentic ties inject-all and loses to relevant-injection); oracle-relevant injection
    is the robust optimum (Sonnet + relevant = **100% on both arms**). Capability shrinks headroom
-   (regression off 5%→50%). See FINDINGS Phase 8. **← next:**
-5. **Headline campaign + reporting layer (§10).** ±Opus (if warranted) and a higher-N (N≥20) campaign
-   over the `model × delivery` grid to tighten the CIs + `make_figures.py` for the writeup; then the
-   deliverable track: a trajectory → structured, traceable report with regression figures (needs the
-   matplotlib sandbox bump), validated on regression cases.
-6. **Web app (§11).** `apps/api` (jobs + SSE) then `apps/web` (clickable UI with the skills/delivery
-   toggle) — the live demonstration of the finding.
+   (regression off 5%→50%). See FINDINGS Phase 8.
+5. **Reporting layer (§10). ✅ BUILT (text + traceability).** A new `reporting/` module narrates a
+   saved trajectory into a typed `Report`: a deterministic evidence/verify backbone (every cited
+   number must appear in its observation — `compute-dont-fabricate` mechanized) wrapped around an
+   injected, mockable LLM-composer (schema + validate/retry), plus a Markdown renderer and
+   `scripts/report.py`. Validated end-to-end on a real regression trajectory (it narrates the
+   robust-SE assumption check, cites every step, flags nothing fabricated). **Next slice:** figures
+   (residuals/QQ/leverage — needs the matplotlib sandbox bump, §8). **← next deliverable step.**
+6. **Web app (§11)** then a **headline campaign**. `apps/api` (jobs + SSE) + `apps/web` (the
+   clickable UI) render this `Report` with the skills/delivery toggle as the live demo; the campaign
+   (±Opus, N≥20 over the `model × delivery` grid + `make_figures.py`, deferred for now) tightens the
+   CIs for the writeup.
 
 ### Future (seamed)
 
