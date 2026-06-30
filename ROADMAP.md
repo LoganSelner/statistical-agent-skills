@@ -459,4 +459,4 @@ skills-vs-RAG (procedural vs declarative).
 - Anthropic Agent Skills open standard — agentskills.io; github.com/anthropics/skills.
 - Report-generation patterns: structured-output schema (LlamaIndex); two-layer structured-summary +
   interactive front end with traceability (clinical RAG+LLM report gen, MDPI AI 6(8):188).
-  
+
