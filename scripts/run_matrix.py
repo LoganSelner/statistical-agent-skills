@@ -22,11 +22,13 @@ import json
 import logging
 from pathlib import Path
 import sys
+from typing import Any
 
 from _paths import RESULTS_DIR
 from dotenv import load_dotenv
 import yaml
 
+from statskills.evaluation import EngagementSummary
 from statskills.evaluation.trials import CI
 from statskills.experiments import (
     MatrixResult,
@@ -56,14 +58,18 @@ def _print_matrix(result: MatrixResult, out_dir: Path) -> None:
     delta_by = {(d.model, d.arm): d.comparison.pass_rate_delta for d in result.deltas}
     print(f"\n########## MATRIX ({len(result.cells)} cells) ##########")
     print(f"out: {out_dir}\n")
-    print(f"  {'model':<18}{'arm':<5}{'pass-rate (95% CI)':<24}{'Δ vs baseline':<22}")
+    print(
+        f"  {'model':<18}{'arm':<8}{'pass-rate (95% CI)':<24}"
+        f"{'Δ vs baseline':<22}{'read':>5}"
+    )
     for cr in result.cells:
         delta = delta_by.get((cr.cell.model, cr.cell.arm))
         cached = "  (cached)" if cr.cached else ""
         print(
-            f"  {cr.cell.model:<18}{cr.cell.arm:<5}"
+            f"  {cr.cell.model:<18}{cr.cell.arm:<8}"
             f"{_ci(cr.summary.pass_rate):<24}"
-            f"{(_delta_ci(delta) if delta else '—'):<22}{cached}"
+            f"{(_delta_ci(delta) if delta else '—'):<22}"
+            f"{cr.engagement.read_rate:>5.0%}{cached}"
         )
 
     # Per-task pass frequency, one column per cell (rows = tasks).
@@ -78,11 +84,41 @@ def _print_matrix(result: MatrixResult, out_dir: Path) -> None:
             f"{cr.summary.per_task_pass_freq.get(task, 0.0):>9.0%} " for _, cr in cols
         )
         print(f"  {task:<26}{row}")
+
+    # Per-task skill-read frequency — the selective-engagement view (0 off/injected).
+    print(
+        f"\n  per-task skill-read frequency\n  {'task':<26}"
+        + "".join(f"{c:>10}" for c, _ in cols)
+    )
+    for task in tasks:
+        row = "".join(
+            f"{cr.engagement.per_task_read_freq.get(task, 0.0):>9.0%} "
+            for _, cr in cols
+        )
+        print(f"  {task:<26}{row}")
     print()
 
 
 def _ci_dict(ci: CI) -> dict[str, float]:
     return {"point": ci.point, "low": ci.low, "high": ci.high}
+
+
+def _engagement_dict(e: EngagementSummary) -> dict[str, Any]:
+    """The cell's engagement block for matrix.json (read-rate + read/pass)."""
+    rp = e.read_pass
+    return {
+        "read_rate": e.read_rate,
+        "per_task_read_freq": e.per_task_read_freq,
+        "skill_read_counts": e.skill_read_counts,
+        "read_pass": {
+            "read_pass": rp.read_pass,
+            "read_fail": rp.read_fail,
+            "noread_pass": rp.noread_pass,
+            "noread_fail": rp.noread_fail,
+            "pass_rate_given_read": rp.pass_rate_given_read,
+            "pass_rate_given_no_read": rp.pass_rate_given_no_read,
+        },
+    }
 
 
 def _matrix_json(
@@ -105,6 +141,7 @@ def _matrix_json(
                 "pass_rate": _ci_dict(cr.summary.pass_rate),
                 "mean_score": _ci_dict(cr.summary.mean_score),
                 "per_task_pass_freq": cr.summary.per_task_pass_freq,
+                "engagement": _engagement_dict(cr.engagement),
             }
             for cr in result.cells
         ],
