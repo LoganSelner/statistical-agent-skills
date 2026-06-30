@@ -36,6 +36,15 @@ command in [Reproducibility](#reproducibility).
   75% (under-engagement). Bonus (resolution × difficulty): descriptions alone (`all·L0`) carry
   *nameable* fixes (confounding, robust SEs → 100%) but not *procedural* ones (leverage, non-linearity
   → 20%; `all·L0` regression 60% vs `all·L1` 100%).
+- **Capability reframes the delivery story — "agentic" is not reliably selective (model axis, newest,
+  on Sonnet 4.6):** the selectivity lever *strengthens* — relevant-only injection beats inject-all by
+  **+36pp** on Sonnet (`rel·L1` 100% vs `all·L1` 64%), and **Sonnet + `rel·L1` = 100% on both arms**
+  (the right skill ceilings a capable model). But **agent-activation stops being selective**: Sonnet
+  *over-reads* (agentic read-rate **84–100%** vs Haiku's 10–36%), re-importing the distraction, so its
+  agentic *ties* inject-all and *loses* to relevant-injection. So the lever is **relevance routing**,
+  which agent-activation only approximates when engagement is well-calibrated (Haiku under-reads, Sonnet
+  over-reads). Capability also shrinks headroom (regression `off` 5%→50% — Sonnet solves the easy traps
+  unaided).
 - **The hard precondition:** this only appears on a **frontier** model. Local coder models
   (qwen2.5-coder 7B/14B, qwen3-14B) **never read an offered skill** (0/55 agentic trials) — skill
   *invocation* is an emergent capability they sit below.
@@ -195,6 +204,41 @@ deterministic oracle router (the task's concepts → its target skill(s)).
   recovery dominates (+12 net). And off-regression was 10% here (Haiku sometimes controls for the
   confounder unprompted) vs the 0% Phase-6 draw; both show large headroom.
 
+### Phase 8 — model axis (capability reframes delivery: "agentic" ≠ selective)
+`results/matrix-20260630T064130Z` (original) + `…T075725Z` (regression), N=5 — the 5-arm sweep on
+**Sonnet 4.6 alongside Haiku 4.5** in one run.
+
+| arm | orig. Haiku | orig. Sonnet | reg. Haiku | reg. Sonnet |
+|---|---|---|---|---|
+| off | 60% | 60% | 5% | 50% |
+| injected · all · L1 | 60% | 64% | 90% | 95% |
+| injected · all · L0 | 56% | 80% | 50% | 100% |
+| injected · **relevant** · L1 | 60% | **100%** | 95% | 100% |
+| agentic | 72% | 72% | 75% | 85% |
+| *agentic read-rate* | *36%* | ***84%*** | *10%* | ***100%*** |
+
+- **Engagement is capability-dependent — and it reverses.** Haiku *under*-engages, *selectively*
+  (read-rate 10–36%, only where a procedure is missing); Sonnet *over*-engages, *non-selectively*
+  (84–100%, reading nearly every task's skills). The "selective engagement" that made Haiku's agentic
+  win is a Haiku *calibration*, not a property of the delivery channel.
+- **The selectivity lever generalizes — and is cleaner on Sonnet.** Relevant-only injection beats
+  inject-all by **+36pp** on Sonnet's original arm (`rel·L1` 100% vs `all·L1` 64%): the distractor
+  payload costs the stronger model *more*. (Haiku's original-arm dose is noisy this draw — the relevant
+  skill recovers MC 0→100% but misleads `trap-welch`, netting ~0; see caveat.)
+- **"Agent-activation" is not a reliable proxy for selectivity.** Because Sonnet over-reads, its
+  agentic (72%) *ties* inject-all (64%) and *loses* to `rel·L1` (100%) on the original arm — it
+  re-imports the distraction by reading broadly. The robust optimum is **oracle-relevant injection**:
+  **Sonnet + `rel·L1` = 100% on both arms** — give a capable model exactly the right skill and it
+  ceilings.
+- **Capability shrinks headroom.** Regression `off` rises 5%→50%: Sonnet solves confounding (100%) and
+  non-linearity (100%) unaided, leaving headroom only on the hardest procedural traps
+  (heteroskedasticity, influence). The flip (injected ≥ agentic) persists on regression but its deltas
+  shrink.
+- **Caveat — N=5 stochasticity.** This fresh Haiku draw differs from Phase 7 (original `rel·L1` 60% vs
+  72%; regression `off` 5% vs 10%); CIs overlap and the qualitative story holds, but the original-arm
+  `rel·L1` "recovery" is draw-dependent (the relevant skill's damage to already-solved `trap-welch`
+  varies). The case for the higher-N headline campaign.
+
 ## Interpretation
 
 1. **Delivery is decisive, and the lever is *selectivity* (now causal, Phase 7).** A dose-response
@@ -224,13 +268,19 @@ deterministic oracle router (the task's concepts → its target skill(s)).
    *procedural* ones (Cook's-distance diagnostics, adding a quadratic term). The L0→L1 step is not
    uniform — it pays off only where the procedure isn't already cued by the name. This refines
    progressive disclosure beyond "less context is better."
+7. **The lever is *relevance*; agent-activation is a capability-dependent approximation of it (Phase
+   8).** Selectivity wins for both models, but Haiku reaches it by *under*-reading and Sonnet defeats it
+   by *over*-reading — only oracle-relevant injection delivers it reliably (Sonnet + relevant = 100% on
+   both arms). So the practical recommendation shifts from "let the agent activate skills" to "**route
+   the *relevant* skill**"; agent-activation pays off only when the model's engagement is
+   well-calibrated. This subsumes #1 and #5: "agentic > injected" was a Haiku calibration, not a law.
 
 ## Threats to validity
 
 - **Coarse instrument:** 4–5 trap tasks per arm → ~20pp granularity; N=5 gives real-but-wide CIs.
-- **One frontier model:** the delivery interaction is shown on Haiku only — and is **task-mix
-  dependent** (agentic>injected on the original arm, injected>agentic on regression); the
-  capability×delivery interaction (Sonnet/Opus) is untested.
+- **Two frontier models, one vendor:** the delivery interaction now spans **Haiku + Sonnet** (the
+  capability axis is the headline of Phase 8), but Opus and cross-vendor models are untested, and the
+  per-cell CIs are still N=5 (the higher-N campaign will tighten them).
 - **Pretraining-rich domain:** inferential statistics is well-covered, so headroom is inherently
   limited (the literature's biggest skill gains are in under-represented domains).
 - **Determinism vs stochasticity:** local CIs are degenerate (temp-0 determinism); only the frontier
@@ -253,14 +303,17 @@ uv run python scripts/run_matrix.py configs/experiments/<grid>.yaml # off/.../ar
 | **Haiku regression traps (off/L1/agentic)** | `regression_haiku_grid.yaml` | `results/matrix-<ts>/` |
 | **Haiku dose-response (5 arms, original)** | `dose_traps_haiku.yaml` | `results/matrix-<ts>/` |
 | **Haiku dose-response (5 arms, regression)** | `dose_regression_haiku.yaml` | `results/matrix-<ts>/` |
+| **Model axis Haiku+Sonnet (5 arms, original)** | `model_axis_traps.yaml` | `results/matrix-<ts>/` |
+| **Model axis Haiku+Sonnet (5 arms, regression)** | `model_axis_regression.yaml` | `results/matrix-<ts>/` |
 
 Haiku needs `ANTHROPIC_API_KEY`; local grids need a reachable Ollama (`OLLAMA_BASE_URL`). All need
 the Docker sandbox image (`make sandbox-image`). Each cell's `run.json` carries full provenance.
 
 ## What's next
 
-The dose-response closed the §0 loop: skill delivery is a correctness lever *via selectivity*, and the
-distractor payload — not the channel — is what costs the gain. The mechanism is now understood on
-Haiku across both task arms. Next: the **model axis** (Sonnet ± Opus) to test how the
-capability×delivery×task-mix surface generalises; higher **N** to tighten the dose-response CIs; and
-then the **reporting layer / deliverable track**. Prioritised in [ROADMAP.md](ROADMAP.md) §15.
+The model axis sharpened the thesis: the lever is **relevance routing**, and "agent-activation" only
+approximates it when engagement is calibrated (Haiku under-reads, Sonnet over-reads); oracle-relevant
+injection is the robust optimum (Sonnet + relevant = 100% both arms). The research spine is now strong
+across two frontier models. Next: **±Opus** (if warranted) and a **higher-N headline campaign** over
+this model×delivery grid to tighten the CIs, then pivot to the **deliverable track** (reporting layer →
+web app) with the science locked. Prioritised in [ROADMAP.md](ROADMAP.md) §15.
