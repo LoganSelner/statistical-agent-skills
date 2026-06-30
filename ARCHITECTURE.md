@@ -38,6 +38,7 @@ src/statskills/
 configs/        YAML configs with `extends:` inheritance (experiments/ = grid manifests)
 scripts/        thin CLIs: run, run_matrix, grade, compare, report, gen_authored_data, fetch_dabench
 apps/api/       FastAPI web backend (uv-workspace member; deliverable track) — imports inward
+apps/web/       Vite + Svelte demo UI (Node package; web → api → statskills)
 ```
 
 ### `core/` — plumbing
@@ -143,6 +144,19 @@ manifest** depending inward on `statistical-agent-skills[reporting]` + FastAPI; 
   `GET /runs/{id}/events` (SSE over the tap), `GET /runs/{id}` (status + `Report` JSON),
   `GET /runs/{id}/figures/{name}`. Built by `create_app` so tests inject a fake LLM +
   in-memory executor (no Docker, no API key). CI runs it as a separate job.
+
+### `apps/web/` — the demo UI (deliverable track)
+A Vite + Svelte 5 + TypeScript single-page app — a **Node package outside the Python
+workspace** that depends only on the HTTP API (`web → api → statskills`; the JS stack never
+touches the core, with its own `package.json` and its own CI job). `src/lib/api.ts` is the
+typed client (`submitRun`, `streamEvents` wrapping `EventSource`, `fetchRun`, `figureUrl`)
+over `src/lib/types.ts` (TS mirrors of the backend payloads); `src/components/` holds the
+run form (with the **off/injected/agentic** toggle — the demo control), the live step
+stream, and the report view; `App.svelte` is the phase machine (submit → stream → fetch +
+render). All requests use **relative URLs**, so one build serves both dev (the Vite server
+proxies `/runs` to the API) and prod (the API serves the built `dist/` same-origin via the
+opt-in `STATSKILLS_WEB_DIST` mount) — no CORS, no base-URL config. Gate: svelte-check
+(types/a11y) + prettier + vitest + a build.
 
 ## Data flow
 

@@ -118,20 +118,31 @@ context only when the agent chooses to read it (progressive disclosure, as in in
 skill systems). The `engagement_grid.yaml` manifest sweeps `{off, L1 injected, agentic}` to
 test whether faithful delivery changes whether the agent applies a skill.
 
-## Web demo backend (`apps/api`)
+## Web demo (`apps/api` + `apps/web`)
 
-The deliverable-track FastAPI service turns the harness into a clickable demo: submit a
-run (prompt + dataset + a skills/delivery toggle), watch the agent's steps stream, and
-fetch the composed, traceable report. It's a workspace member depending inward on the
-core (FastAPI never enters the harness runtime).
+The deliverable-track web app turns the harness into a clickable demo: upload a dataset,
+pick a delivery mode (**off / injected / agentic**), watch the agent's steps stream live,
+and read the composed, traceable report — flip the toggle to *see* the analysis change.
+The **`apps/api`** FastAPI backend (a Python-workspace member; FastAPI never enters the
+harness runtime) and the **`apps/web`** Vite + Svelte frontend (a Node package outside the
+workspace) keep a one-way boundary: `web → api → statskills`.
 
 ```bash
-uv sync --all-packages                                          # core + apps/api
-ANTHROPIC_API_KEY=… uv run uvicorn statskills_api.app:app --reload
+# Backend (needs ANTHROPIC_API_KEY for the LLM + Docker for the sandbox):
+uv sync --all-packages
+ANTHROPIC_API_KEY=… uv run uvicorn statskills_api.app:app          # API on :8000
+
+# Frontend (dev): the Vite server proxies /runs to the API — one origin, no CORS:
+make web-install        # once
+make web-dev            # Vite dev server on :5173
+
+# Or one origin / one process: build the SPA and let the API serve it:
+make web-build
+STATSKILLS_WEB_DIST=apps/web/dist ANTHROPIC_API_KEY=… uv run uvicorn statskills_api.app:app
 ```
 
-See [apps/api/README.md](apps/api/README.md) for the endpoints. The frontend (`apps/web`)
-is the next step.
+See [apps/api/README.md](apps/api/README.md) for the endpoints and
+[apps/web/README.md](apps/web/README.md) for the frontend.
 
 ## Project layout
 
@@ -149,6 +160,7 @@ configs/             # YAML configs (extends: inheritance); experiments/ = grid 
 data/authored/       # small bundled datasets for the authored tasks
 scripts/             # run, run_matrix, grade, compare CLIs (thin adapters)
 apps/api/            # FastAPI web backend (workspace member; deliverable track)
+apps/web/            # Vite + Svelte demo UI (Node package; web → api → statskills)
 tests/               # pytest suite
 ```
 
