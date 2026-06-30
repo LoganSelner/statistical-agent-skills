@@ -38,6 +38,7 @@ dev = [
     "mypy",
     "pytest",
     "pre-commit",
+    "httpx>=0.27",          # Starlette TestClient transport (apps/api endpoint tests)
     "types-pyyaml>=6.0.12.20250915",
     # Local-executor / sandbox-parity stack — lets `LocalExecutor` run the agent's
     # analysis code in-process for tests. The production `DockerExecutor` ignores

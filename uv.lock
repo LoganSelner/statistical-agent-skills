@@ -1093,6 +1093,7 @@ reporting = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "httpx" },
     { name = "ipython" },
     { name = "matplotlib" },
     { name = "mypy" },
@@ -1125,6 +1126,7 @@ provides-extras = ["reporting"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "httpx", specifier = ">=0.27" },
     { name = "ipython", specifier = ">=8" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "mypy" },

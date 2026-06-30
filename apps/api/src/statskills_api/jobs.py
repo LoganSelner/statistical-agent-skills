@@ -11,7 +11,7 @@ process holds it, so jobs live for the process lifetime.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 import threading
 import uuid
@@ -20,11 +20,14 @@ from statskills.reporting import Report
 from statskills_api.stream import RunTap
 
 
-class JobStatus(str, Enum):
-    """Lifecycle of a run, polled via ``GET /runs/{id}``."""
+class JobStatus(StrEnum):
+    """Lifecycle of a run, polled via ``GET /runs/{id}``.
+
+    The intermediate "composing the report" phase is surfaced on the live SSE stream as
+    a ``status`` event, not here — the REST poll only needs the terminal outcome.
+    """
 
     RUNNING = "running"
-    COMPOSING = "composing"
     DONE = "done"
     ERROR = "error"
 
@@ -49,8 +52,12 @@ class JobRegistry:
         self._lock = threading.Lock()
         self._slots = threading.BoundedSemaphore(max_concurrent)
 
-    def create(self, out_dir: Path) -> Job:
-        job = Job(id=uuid.uuid4().hex, out_dir=out_dir)
+    def create(self, base_dir: Path) -> Job:
+        """Register a job with a fresh id + its own output dir under ``base_dir``."""
+        job_id = uuid.uuid4().hex
+        out_dir = base_dir / job_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+        job = Job(id=job_id, out_dir=out_dir)
         with self._lock:
             self._jobs[job.id] = job
         return job
