@@ -87,8 +87,10 @@ is the stateful-kernel subprocess driver.
 checks), `grading.py` (`grade` over saved trajectories — never re-runs the agent),
 `metrics.py` (pass-rate/PASQ aggregates), `trials.py` (`summarize_trials` + percentile
 **bootstrap CIs** resampling whole trials), `compare.py` (`compare_trials` — the per-arm delta
-CI), `runs.py` (run-directory I/O: `grade_run` / `load_scores`), `_deferred.py` (seamed
-interfaces for validity/error-mode/integrity scoring — interfaces only).
+CI), `engagement.py` (`extract_engagement` + `summarize_engagement` — skill-file reads and the
+**read×pass** contingency from saved trajectories, the same trajectory-consumer pattern as
+grading), `runs.py` (run-directory I/O: `grade_run` / `load_scores` / `load_engagement`),
+`_deferred.py` (seamed interfaces for validity/error-mode/integrity scoring — interfaces only).
 
 ### `experiments/` — orchestration
 `runner.py` — `execute_run_config(cfg, *, out_dir, …)` (the testable core; optional injected

@@ -96,9 +96,14 @@ is a late-emerging capability; local scale sits below the threshold. → the exp
 - **agentic = off + MC(0→60%)**, everything else untouched → 72%.
 - **injected = off + MC(0→60%) − mwu(100→60%) − welch(100→60%)** → 56%: the full payload distracts
   on tasks Haiku already solved, offsetting the MC gain.
-- **Engagement (agentic cell):** Haiku read a skill only for `trap-multiple-comparisons` (**4/5
-  trials**, reading the MC-correction + assumption-checks skills) and **0** skills for the other
-  four tasks. Selective, calibrated invocation.
+- **Engagement (agentic cell) — now a measured artifact** (`evaluation/engagement.py`, emitted to
+  each run's `engagement.jsonl` and into `matrix.json`, no agent re-run): Haiku read a skill only for
+  `trap-multiple-comparisons` (**4/5 trials**, reading the MC-correction + assumption-checks skills)
+  and **0** for the other four tasks (read-rate **16%**) — selective, calibrated invocation. The
+  cell-level read×pass barely separates (P(pass|read) 75% vs P(pass|¬read) 71%) because no-reads pile
+  up on tasks already solved; the **per-task** read-frequency is what isolates the mechanism. At N=5
+  the per-trial "right skill → solve" story is still unsupported (MC reads passed 2/3; one solve came
+  from reading the *assumption-checks* skill, one MC read still failed).
 - **Real stochasticity:** off is deterministic, but L1 [40,40,60,60,80] and agentic [80,60,60,80,80]
   vary trial-to-trial → the first non-degenerate CIs in the project.
 

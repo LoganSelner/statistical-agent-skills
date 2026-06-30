@@ -24,6 +24,11 @@ from typing import Any
 
 from statskills.core.config import load_yaml_with_inheritance
 from statskills.evaluation.compare import TrialComparison, compare_trials
+from statskills.evaluation.engagement import (
+    EngagementRecord,
+    EngagementSummary,
+    summarize_engagement,
+)
 from statskills.evaluation.results import ScoreRecord
 from statskills.evaluation.trials import TrialSummary, summarize_trials
 
@@ -62,11 +67,12 @@ class Manifest:
 
 @dataclass(frozen=True)
 class CellResult:
-    """One executed cell: where it ran and its over-trials summary."""
+    """One executed cell: where it ran, its over-trials summary, and its engagement."""
 
     cell: Cell
     run_dir: Path
     summary: TrialSummary
+    engagement: EngagementSummary  # skill reads + read/pass, from the trajectories
     cached: bool  # loaded from an existing graded run (resume) rather than re-run
 
 
@@ -93,13 +99,17 @@ class MatrixIO:
 
     ``run_cell`` executes one cell over N trials into the given directory and returns
     the run directory; ``grade`` scores a run directory; ``load_scores`` reads an
-    already-graded one (for resume). :func:`default_matrix_io` wires the production
-    implementations (the library runner + :mod:`statskills.evaluation.runs`).
+    already-graded one (for resume); ``engagement`` (re)derives the skill-read records
+    from the run directory's *current* trajectories — always recomputed (a cheap scan),
+    so a re-run cell never reports a previous run's reads. :func:`default_matrix_io`
+    wires the production implementations (the library runner +
+    :mod:`statskills.evaluation.runs`).
     """
 
     run_cell: Callable[[Cell, int, Path], Path]
     grade: Callable[[Path], list[ScoreRecord]]
     load_scores: Callable[[Path], list[ScoreRecord]]
+    engagement: Callable[[Path], list[EngagementRecord]]
 
 
 def _require_str(value: object, field: str) -> str:
@@ -236,6 +246,7 @@ def run_matrix(
                 cell=cell,
                 run_dir=run_dir,
                 summary=summarize_trials(records),
+                engagement=summarize_engagement(io.engagement(run_dir), records),
                 cached=cached,
             )
         )
@@ -289,7 +300,11 @@ def default_matrix_io(*, executor: str | None = None) -> MatrixIO:
     :func:`parse_manifest` (tests inject a fake ``MatrixIO``) does not pull the run
     stack.
     """
-    from statskills.evaluation.runs import grade_run, load_scores
+    from statskills.evaluation.runs import (
+        extract_run_engagement,
+        grade_run,
+        load_scores,
+    )
     from statskills.experiments.runner import execute_run_config
 
     def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
@@ -300,4 +315,11 @@ def default_matrix_io(*, executor: str | None = None) -> MatrixIO:
             executor=executor,
         )
 
-    return MatrixIO(run_cell=run_cell, grade=grade_run, load_scores=load_scores)
+    # Engagement always recomputes from the cell's current trajectories (a cheap scan);
+    # a re-run never shows an earlier run's reads. (load_scores stays resume-only.)
+    return MatrixIO(
+        run_cell=run_cell,
+        grade=grade_run,
+        load_scores=load_scores,
+        engagement=extract_run_engagement,
+    )

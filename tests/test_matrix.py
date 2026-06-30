@@ -2,19 +2,27 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
+from statskills.evaluation.engagement import EngagementRecord
 from statskills.evaluation.results import ScoreRecord
 from statskills.experiments import (
     Cell,
     Manifest,
     MatrixIO,
     compose_cell_config,
+    default_matrix_io,
     parse_manifest,
     run_matrix,
 )
+
+
+def _no_engagement(run_dir: Path) -> list[EngagementRecord]:
+    """A fake engagement source for delta-focused tests (nothing read)."""
+    return []
 
 
 def _rec(task_id: str, passed: bool, trial: int) -> ScoreRecord:
@@ -61,6 +69,7 @@ def test_run_matrix_runs_each_cell_once_and_deltas_vs_model_baseline(
         run_cell=run_cell,
         grade=lambda run_dir: _CANNED[run_dir.name],
         load_scores=lambda run_dir: (_ for _ in ()).throw(FileNotFoundError()),
+        engagement=_no_engagement,
     )
     cells = (
         Cell("m1", "off", Path("a")),
@@ -96,7 +105,10 @@ def test_run_matrix_resume_skips_already_graded_cells(tmp_path: Path) -> None:
         raise FileNotFoundError
 
     io = MatrixIO(
-        run_cell=run_cell, grade=lambda d: _CANNED[d.name], load_scores=load_scores
+        run_cell=run_cell,
+        grade=lambda d: _CANNED[d.name],
+        load_scores=load_scores,
+        engagement=_no_engagement,
     )
     cells = (Cell("m1", "off", Path("a")), Cell("m1", "L1", Path("a")))
     result = run_matrix(
@@ -125,7 +137,10 @@ def test_run_matrix_resume_reruns_cell_with_mismatched_trial_count(
         raise FileNotFoundError
 
     io = MatrixIO(
-        run_cell=run_cell, grade=lambda d: _CANNED[d.name], load_scores=load_scores
+        run_cell=run_cell,
+        grade=lambda d: _CANNED[d.name],
+        load_scores=load_scores,
+        engagement=_no_engagement,
     )
     cells = (Cell("m1", "off", Path("a")), Cell("m1", "L1", Path("a")))
     result = run_matrix(
@@ -136,6 +151,54 @@ def test_run_matrix_resume_reruns_cell_with_mismatched_trial_count(
     assert "m1__off" in runs
     cached = {cr.cell.arm: cr.cached for cr in result.cells}
     assert cached == {"off": False, "L1": False}
+
+
+def test_run_matrix_folds_engagement_into_cell_result(tmp_path: Path) -> None:
+    def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
+        return out_dir
+
+    # Per-cell skill reads: the L1 cell reads a skill on trial 0 only.
+    eng: dict[str, list[EngagementRecord]] = {
+        "m1__off": [EngagementRecord("a", 0, ()), EngagementRecord("a", 1, ())],
+        "m1__L1": [EngagementRecord("a", 0, ("s",)), EngagementRecord("a", 1, ())],
+    }
+    io = MatrixIO(
+        run_cell=run_cell,
+        grade=lambda d: _CANNED[d.name],
+        load_scores=lambda d: (_ for _ in ()).throw(FileNotFoundError()),
+        engagement=lambda d: eng[d.name],
+    )
+    cells = (Cell("m1", "off", Path("a")), Cell("m1", "L1", Path("a")))
+    result = run_matrix(
+        Manifest(trials=2, baseline_arm="off", cells=cells), tmp_path, io
+    )
+
+    by_arm = {cr.cell.arm: cr.engagement for cr in result.cells}
+    assert by_arm["off"].read_rate == 0.0
+    assert by_arm["L1"].read_rate == 0.5  # 1 of 2 cells read a skill
+    assert by_arm["L1"].skill_read_counts == {"s": 1}
+    assert by_arm["L1"].per_task_read_freq == {"a": 0.5}
+
+
+def test_default_io_engagement_recomputes_from_trajectories(tmp_path: Path) -> None:
+    # A re-run rewrites trajectories.jsonl but a stale engagement.jsonl can linger. The
+    # runner must recompute engagement from the new trajectories, never load the
+    # stale file (which would leak a previous run's reads into matrix.json).
+    run_dir = tmp_path / "cell"
+    run_dir.mkdir()
+    (run_dir / "trajectories.jsonl").write_text(
+        json.dumps(
+            {"task_id": "t", "trial": 0, "steps": [{"code": 'open("skills/mc.md")'}]}
+        )
+        + "\n"
+    )
+    (run_dir / "engagement.jsonl").write_text(
+        json.dumps({"task_id": "t", "trial": 0, "skills_read": []}) + "\n"  # stale
+    )
+
+    records = default_matrix_io().engagement(run_dir)
+
+    assert [r.skills_read for r in records] == [("mc",)]  # recomputed, not the stale []
 
 
 def test_parse_manifest_resolves_configs_arms_and_label(tmp_path: Path) -> None:
