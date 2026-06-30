@@ -78,13 +78,20 @@ def main() -> int:
         )
         return 1
 
+    # Preserve the run's recorded LLM settings (base_url, timeouts, ...) so the report
+    # uses the same endpoint/limits; CLI flags override provider/model on top.
     cfg = meta.get("config", {})
+    llm_keys = (
+        "provider",
+        "model",
+        "base_url",
+        "temperature",
+        "max_tokens",
+        "request_timeout",
+    )
+    llm_block = {key: cfg[key] for key in llm_keys if cfg.get(key) is not None}
     llm = build_llm(
-        resolve_llm_config(
-            None,
-            provider=args.provider or cfg.get("provider"),
-            model=args.model or cfg.get("model"),
-        )
+        resolve_llm_config(llm_block, provider=args.provider, model=args.model)
     )
     report = compose_report(traj, task, llm)
     markdown = render_markdown(report)

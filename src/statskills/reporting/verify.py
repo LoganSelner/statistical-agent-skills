@@ -50,10 +50,12 @@ def _supported(claim: Claim, observation: str | None) -> bool:
 
 def _matches(want: float, printed: float, decimals: int) -> bool:
     """A claim is supported if it equals a printed number — exactly, at the claim's
-    stated precision (0.16 matches a printed 0.1551), or within a small relative tol."""
+    stated *fractional* precision (0.16 matches a printed 0.1551), or within a small
+    relative tolerance. The precision match is gated on ``decimals > 0`` so an integer
+    claim does not loosely match by rounding (``0`` must not "match" a printed 0.49)."""
     return (
         abs(printed - want) <= 1e-9
-        or round(printed, decimals) == round(want, decimals)
+        or (decimals > 0 and round(printed, decimals) == round(want, decimals))
         or abs(printed - want) <= _REL_TOLERANCE * max(1.0, abs(want))
     )
 

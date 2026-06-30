@@ -147,6 +147,36 @@ def test_verify_tolerates_rounding_and_flags_wrong_step() -> None:
     )  # -0.96 is in step 2, not the cited step 1
 
 
+def test_verify_does_not_loosely_match_integer_claims() -> None:
+    # An integer-looking claim must NOT verify by rounding an unrelated observation
+    # (0 must not "match" a printed 0.49, nor 2 a printed 1.6).
+    traj = _traj(_code_step(1, "print(p)", "p = 0.49 and slope = 1.6"))
+    report = verify(
+        parse_report(
+            "t",
+            _payload(
+                results=[
+                    {"label": "count", "value": "0", "step": 1},
+                    {"label": "pairs", "value": "2", "step": 1},
+                ]
+            ),
+        ),
+        traj,
+    )
+    assert [c.verified for c in report.results] == [False, False]
+
+
+def test_verify_matches_a_true_integer_exactly() -> None:
+    traj = _traj(_code_step(1, "print(n)", "significant pairs = 2"))
+    report = verify(
+        parse_report(
+            "t", _payload(results=[{"label": "pairs", "value": "2", "step": 1}])
+        ),
+        traj,
+    )
+    assert report.results[0].verified is True
+
+
 def test_verify_flags_non_numeric_claim() -> None:
     traj = _traj(_code_step(1, "print(x)", "the effect is negative"))
     report = verify(
