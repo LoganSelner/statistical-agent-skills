@@ -1,0 +1,6 @@
+# Claude Haiku 4.5 base for the inferential-REGRESSION trap arm (needs ANTHROPIC_API_KEY).
+# Same frontier instrument as trap_haiku.yaml, pointed at the authored_regression task set
+# (the four regression traps that broaden the instrument beyond the original five).
+extends: trap_haiku.yaml
+tasks:
+  set: authored_regression

@@ -1,0 +1,18 @@
+# Regression-trap headroom + skill-flip smoke on Claude Haiku 4.5: does broadening the
+# instrument break the single-task dependency? {off, L1 injected, agentic} on the
+# authored_regression arm. Needs ANTHROPIC_API_KEY + Docker. Cost: a few dollars at N=5.
+#   python scripts/gen_authored_data.py                       # generate the trap CSVs first
+#   python scripts/run_matrix.py configs/experiments/regression_haiku_grid.yaml
+#
+# A run manifest (no `extends`): cells are the Haiku regression base + an `arm` whose skills
+# overlay is defined once under `arms`. Quote "off" (a bare off is a YAML 1.1 boolean).
+trials: 5
+baseline_arm: "off"
+arms:
+  "off": {}
+  L1: { mode: curated, resolution: L1, router: forced, library: statistics }
+  agentic: { mode: curated, delivery: agentic, resolution: L1, router: forced, library: statistics }
+cells:
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: "off" }
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: "L1" }
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: "agentic" }
