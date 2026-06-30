@@ -1,0 +1,23 @@
+# Injection DOSE-RESPONSE on the ORIGINAL trap arm (Claude Haiku 4.5): does irrelevant-skill
+# payload distract? off / injected-all (L1 bodies, L0 descriptions) / injected-relevant (L1) /
+# agentic. The key contrast is rel_l1 vs all_l1 — relevant-only should RECOVER the distraction
+# loss injection showed on this arm. Needs ANTHROPIC_API_KEY + Docker. Cost: a few dollars at N=5.
+#   python scripts/gen_authored_data.py                       # generate the trap CSVs first
+#   python scripts/run_matrix.py configs/experiments/dose_traps_haiku.yaml
+#
+# Quote "off" (a bare off is a YAML 1.1 boolean). Injected delivery is the default; only the
+# agentic arm sets delivery explicitly.
+trials: 5
+baseline_arm: "off"
+arms:
+  "off": {}
+  all_l1: { mode: curated, resolution: L1, router: forced, library: statistics }
+  all_l0: { mode: curated, resolution: L0, router: forced, library: statistics }
+  rel_l1: { mode: curated, resolution: L1, router: relevant, library: statistics }
+  agentic: { mode: curated, delivery: agentic, resolution: L1, router: forced, library: statistics }
+cells:
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: "off" }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: all_l1 }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: all_l0 }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: rel_l1 }
+  - { model: "claude-haiku-4-5", config: trap_haiku.yaml, arm: agentic }
