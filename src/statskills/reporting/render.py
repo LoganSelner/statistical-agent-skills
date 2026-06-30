@@ -40,6 +40,19 @@ def render_markdown(report: Report) -> str:
             )
     else:
         lines.append("_(no quantitative results)_")
+    if report.figures:
+        lines += ["", "## Figures"]
+        for figure in report.figures:
+            cite = (
+                f" _(visualises [step {figure.step}])_"
+                if figure.step is not None
+                else ""
+            )
+            lines += [
+                "",
+                f"![{figure.caption}]({figure.path})",
+                f"*{figure.caption}*{cite}",
+            ]
     lines += [
         "",
         "## Interpretation",

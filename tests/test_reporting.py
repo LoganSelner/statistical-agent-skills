@@ -12,13 +12,14 @@ from statskills.reporting import (
     ReportComposeError,
     ReportSchemaError,
     compose_report,
+    generate_figures,
     observed_steps,
     parse_report,
     render_markdown,
     unverified,
     verify,
 )
-from statskills.tasks.schema import ExpectedAnswer, Task
+from statskills.tasks.schema import Dataset, ExpectedAnswer, Task
 
 
 def _traj(*steps: dict[str, Any]) -> dict[str, Any]:
@@ -276,6 +277,86 @@ def test_render_markdown_has_sections_and_citations() -> None:
     assert "## Method" in md and "## Results" in md and "## Caveats" in md
     assert "**p-value:** 0.155 _[step 1]_" in md
     assert "unverified" not in md  # the claim is grounded
+
+
+def test_render_markdown_includes_figures_section() -> None:
+    from dataclasses import replace
+
+    from statskills.reporting import Figure
+
+    report = replace(
+        parse_report("t", _payload()),
+        figures=(Figure("figures/x.png", "Residuals vs fitted", 1),),
+    )
+    md = render_markdown(report)
+    assert "## Figures" in md
+    assert "![Residuals vs fitted](figures/x.png)" in md
+    assert "step 1" in md
+
+
+# --- figures (deterministic; matplotlib via the reporting extra) ----------------
+
+
+def _reg_task(tmp_path: Any, columns: str = "x,y") -> Task:
+    csv = tmp_path / "reg.csv"
+    rows = "\n".join(f"{i},{2 * i + (i % 3)}" for i in range(1, 13))
+    csv.write_text(f"{columns}\n{rows}\n")
+    return Task(
+        id="reg-het",
+        prompt="Is the effect significant?",
+        datasets=(Dataset(csv),),
+        expected=ExpectedAnswer.single("No", "categorical"),
+    )
+
+
+def test_generate_figures_gated_and_cited(tmp_path: Any) -> None:
+    task = _reg_task(tmp_path)
+    traj = _traj(
+        _code_step(
+            1,
+            "from statsmodels.stats.diagnostic import het_breuschpagan; bp()",
+            "p=0.0001",
+        ),
+        _code_step(2, "m.get_influence().cooks_distance[0]", "cooks ..."),
+    )
+    figures = generate_figures(traj, task, tmp_path)
+    by_key = {f.path.rsplit("__", 1)[1]: f for f in figures}
+    assert set(by_key) == {"residuals_vs_fitted.png", "influence.png"}  # the two it ran
+    assert by_key["residuals_vs_fitted.png"].step == 1  # cited to the BP step
+    assert by_key["influence.png"].step == 2
+    for fig in figures:  # the PNGs were actually written
+        assert (tmp_path / fig.path).stat().st_size > 0
+
+
+def test_generate_figures_empty_without_a_diagnostic(tmp_path: Any) -> None:
+    task = _reg_task(tmp_path)
+    traj = _traj(_code_step(1, "print(df.corr())", "x  y"))  # no regression diagnostic
+    assert generate_figures(traj, task, tmp_path) == ()
+
+
+def test_generate_figures_ignores_filename_lookalikes(tmp_path: Any) -> None:
+    # Loading 'reg_influence.csv' must NOT count as performing an influence diagnostic —
+    # the filename is a string literal, not an executed get_influence/cooks_distance.
+    task = _reg_task(tmp_path)
+    traj = _traj(
+        _code_step(
+            1, "df = pd.read_csv('reg_influence.csv')  # influence dataset", "x y"
+        )
+    )
+    assert generate_figures(traj, task, tmp_path) == ()
+
+
+def test_generate_figures_empty_for_non_regression_data(tmp_path: Any) -> None:
+    csv = tmp_path / "g.csv"
+    csv.write_text("group,value\nA,1\nA,2\nB,3\nB,4\n")  # no y ~ predictors fit
+    task = Task(
+        id="trap-welch",
+        prompt="p",
+        datasets=(Dataset(csv),),
+        expected=ExpectedAnswer.single("No", "categorical"),
+    )
+    traj = _traj(_code_step(1, "het_breuschpagan(resid, exog)", "p=0.5"))
+    assert generate_figures(traj, task, tmp_path) == ()
 
 
 def test_render_markdown_flags_unverified_claims() -> None:

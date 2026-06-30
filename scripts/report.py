@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import json
 from pathlib import Path
 import sys
@@ -23,7 +24,13 @@ from dotenv import load_dotenv
 
 from statskills.agent.llm import build_llm, resolve_llm_config
 from statskills.evaluation.runs import RUN_META, TRAJECTORIES
-from statskills.reporting import compose_report, render_markdown, unverified
+from statskills.reporting import (
+    FiguresUnavailable,
+    compose_report,
+    generate_figures,
+    render_markdown,
+    unverified,
+)
 from statskills.tasks.loader import load_tasks
 
 
@@ -94,11 +101,19 @@ def main() -> int:
         resolve_llm_config(llm_block, provider=args.provider, model=args.model)
     )
     report = compose_report(traj, task, llm)
-    markdown = render_markdown(report)
 
+    # Attach diagnostic figures next to the report (optional — needs the `reporting`
+    # extra). They land in <report-dir>/figures/; default to the run dir for stdout.
+    fig_dir = args.out.resolve().parent if args.out else args.run_dir
+    try:
+        report = replace(report, figures=generate_figures(traj, task, fig_dir))
+    except FiguresUnavailable as exc:
+        print(f"[info] skipping figures: {exc}", file=sys.stderr)
+
+    markdown = render_markdown(report)
     if args.out:
         args.out.write_text(markdown)
-        print(f"Wrote {args.out}")
+        print(f"Wrote {args.out} ({len(report.figures)} figure(s))")
     else:
         print(markdown)
     flagged = unverified(report)

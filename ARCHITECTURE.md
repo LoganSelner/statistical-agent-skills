@@ -104,10 +104,14 @@ one into a typed, traceable `Report` (the §10 sections). A **deterministic back
 `evidence.py` (`observed_steps`: the citable code-step/observation pairs) + `verify.py` (every
 cited number must appear in its step's observation — the `compute-dont-fabricate` skill mechanized,
 stdlib-only) — wraps an **injected, mockable LLM-composer** (`compose.py`: prompt → schema JSON →
-validate + bounded retry → `verify`). `render.py` emits Markdown with inline `[step N]` indices and
-flags unverified claims; `schema.py` is the frozen-dataclass `Report`/`Claim`. Like grading, it
-**never re-runs the agent**; unlike `evaluation/`, the composer uses the agent's `LLM` (so the layer
-is not stdlib-only, though its `evidence`/`verify` backbone is). CLI: `scripts/report.py`.
+validate + bounded retry → `verify`). `figures.py` adds report-time regression diagnostics
+(residuals-vs-fitted / QQ / Cook's distance) generated from the same dataset+fit, **gated** on the
+diagnostics the agent actually ran and **cited** to the step — lazily importing matplotlib + the
+scientific stack via the optional `reporting` extra (so the harness stays light). `render.py` emits
+Markdown with inline `[step N]` indices, a `## Figures` section, and unverified-claim flags;
+`schema.py` is the frozen-dataclass `Report`/`Claim`/`Figure`. Like grading, it **never re-runs the
+agent** (figures visualise, they don't recompute findings); the composer uses the agent's `LLM`.
+CLI: `scripts/report.py`.
 
 ### `experiments/` — orchestration
 `runner.py` — `execute_run_config(cfg, *, out_dir, …)` (the testable core; optional injected

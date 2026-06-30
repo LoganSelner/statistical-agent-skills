@@ -426,13 +426,16 @@ deadline is not close, so quality wins over speed.)
    (non-selective, agentic ties inject-all and loses to relevant-injection); oracle-relevant injection
    is the robust optimum (Sonnet + relevant = **100% on both arms**). Capability shrinks headroom
    (regression off 5%→50%). See FINDINGS Phase 8.
-5. **Reporting layer (§10). ✅ BUILT (text + traceability).** A new `reporting/` module narrates a
-   saved trajectory into a typed `Report`: a deterministic evidence/verify backbone (every cited
+5. **Reporting layer (§10). ✅ BUILT (text + traceability + figures).** A `reporting/` module narrates
+   a saved trajectory into a typed `Report`: a deterministic evidence/verify backbone (every cited
    number must appear in its observation — `compute-dont-fabricate` mechanized) wrapped around an
-   injected, mockable LLM-composer (schema + validate/retry), plus a Markdown renderer and
-   `scripts/report.py`. Validated end-to-end on a real regression trajectory (it narrates the
-   robust-SE assumption check, cites every step, flags nothing fabricated). **Next slice:** figures
-   (residuals/QQ/leverage — needs the matplotlib sandbox bump, §8). **← next deliverable step.**
+   injected, mockable LLM-composer (schema + validate/retry), a Markdown renderer, and
+   `scripts/report.py`. **Figures** (`figures.py`): report-time regression diagnostics
+   (residuals-vs-fitted / QQ / Cook's distance) **gated** on the agent's actual checks and **cited** to
+   the step — generated offline from the dataset+fit (no agent change, no sandbox change), via the
+   optional `reporting` extra. Validated end-to-end on a real regression trajectory (narrates the
+   robust-SE check, cites every step, embeds a residuals-vs-fitted plot, flags nothing fabricated).
+   **← next deliverable step.**
 6. **Web app (§11)** then a **headline campaign**. `apps/api` (jobs + SSE) + `apps/web` (the
    clickable UI) render this `Report` with the skills/delivery toggle as the live demo; the campaign
    (±Opus, N≥20 over the `model × delivery` grid + `make_figures.py`, deferred for now) tightens the

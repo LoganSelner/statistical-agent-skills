@@ -21,6 +21,17 @@ dependencies = [
 # libs are pinned in the sandbox image (its digest -> provenance). They appear in the
 # `dev` group only so the local test executor can run that code without Docker.
 
+[project.optional-dependencies]
+# Deliverable-track figure generation (reporting/figures.py) — residual/QQ/leverage plots
+# for a report. Lazily imported, so the research harness stays light: the scientific stack
+# is still NOT a core runtime dep (see above). Enable with `uv sync --extra reporting`.
+reporting = [
+    "matplotlib>=3.8",
+    "numpy>=2",
+    "pandas>=2",
+    "statsmodels>=0.14",
+]
+
 [dependency-groups]
 dev = [
     "ruff",
@@ -36,6 +47,7 @@ dev = [
     "pandas>=2",
     "scipy>=1.13",
     "statsmodels>=0.14",
+    "matplotlib>=3.8",      # reporting/figures.py diagnostics (also the `reporting` extra)
     "pyarrow>=16",
 ]
 

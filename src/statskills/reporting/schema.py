@@ -35,6 +35,19 @@ class Claim:
 
 
 @dataclass(frozen=True)
+class Figure:
+    """A diagnostic figure: a saved image, its caption, and the step it visualises.
+
+    ``path`` is relative to the rendered report. ``step`` is the trajectory step whose
+    diagnostic this figure visualises (the provenance pointer), or ``None`` if ungated.
+    """
+
+    path: str
+    caption: str
+    step: int | None = None
+
+
+@dataclass(frozen=True)
 class Report:
     """A structured narration of one trajectory (the §10 sections)."""
 
@@ -46,6 +59,7 @@ class Report:
     results: tuple[Claim, ...]  # the quantitative findings, each traceable
     interpretation: str
     caveats: str
+    figures: tuple[Figure, ...] = ()  # diagnostic plots, attached at report time
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -93,6 +107,11 @@ def parse_report(task_id: str, payload: Mapping[str, Any]) -> Report:
             ) from exc
     return Report(
         task_id=task_id,
+        question=str(payload["question"]),
+        data_summary=str(payload["data_summary"]),
+        method=str(payload["method"]),
+        assumption_checks=str(payload["assumption_checks"]),
         results=tuple(claims),
-        **{field: str(payload[field]) for field in _TEXT_FIELDS},
+        interpretation=str(payload["interpretation"]),
+        caveats=str(payload["caveats"]),
     )
