@@ -11,7 +11,10 @@ introduces an ungrounded finding. The scientific stack + matplotlib are imported
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+import io
 from pathlib import Path
+import re
+import tokenize
 from typing import Any
 
 from statskills.reporting.evidence import ObservedStep, observed_steps
@@ -37,7 +40,7 @@ _DIAGNOSTICS: tuple[tuple[str, tuple[str, ...], str], ...] = (
     ),
     (
         "influence",
-        ("cooks_distance", "get_influence", "influence", "leverage"),
+        ("cooks_distance", "get_influence", "olsinfluence", "hat_matrix_diag"),
         "Cook's distance per observation — points above ~4/n drive the fit.",
     ),
 )
@@ -82,11 +85,31 @@ def generate_figures(
 def _first_step_with(
     steps: Sequence[ObservedStep], signals: tuple[str, ...]
 ) -> int | None:
+    """First step whose *code identifiers* contain a signal — citing a diagnostic the
+    agent actually ran. Matching ignores string literals and comments, so a dataset
+    filename (e.g. ``reg_influence.csv``) or a comment cannot fake a gate."""
     for step in steps:
-        lowered = step.code.lower()
-        if any(signal in lowered for signal in signals):
+        identifiers = _code_identifiers(step.code)
+        if any(signal in identifiers for signal in signals):
             return step.index
     return None
+
+
+def _code_identifiers(code: str) -> str:
+    """The lowercased identifier tokens in ``code`` (string + comment tokens dropped).
+
+    Tokenising keeps real calls like ``get_influence`` / ``het_breuschpagan`` while
+    excluding quoted filenames/paths and comments. Falls back to the raw code minus
+    quoted strings if the cell does not tokenise (rare — executed cells are valid).
+    """
+    names: list[str] = []
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(code).readline):
+            if token.type == tokenize.NAME:
+                names.append(token.string.lower())
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return re.sub(r"\"[^\"]*\"|'[^']*'", " ", code).lower()
+    return " ".join(names)
 
 
 def _fit_dataset(task: Task) -> Any | None:

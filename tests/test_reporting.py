@@ -334,6 +334,18 @@ def test_generate_figures_empty_without_a_diagnostic(tmp_path: Any) -> None:
     assert generate_figures(traj, task, tmp_path) == ()
 
 
+def test_generate_figures_ignores_filename_lookalikes(tmp_path: Any) -> None:
+    # Loading 'reg_influence.csv' must NOT count as performing an influence diagnostic —
+    # the filename is a string literal, not an executed get_influence/cooks_distance.
+    task = _reg_task(tmp_path)
+    traj = _traj(
+        _code_step(
+            1, "df = pd.read_csv('reg_influence.csv')  # influence dataset", "x y"
+        )
+    )
+    assert generate_figures(traj, task, tmp_path) == ()
+
+
 def test_generate_figures_empty_for_non_regression_data(tmp_path: Any) -> None:
     csv = tmp_path / "g.csv"
     csv.write_text("group,value\nA,1\nA,2\nB,3\nB,4\n")  # no y ~ predictors fit
