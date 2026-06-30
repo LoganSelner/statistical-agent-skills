@@ -52,3 +52,24 @@ jobs:
         env:
           MYPYPATH: apps/api/src:apps/api
       - run: uv run pytest apps/api/tests
+
+  # The frontend (apps/web) is a Node package outside the Python workspace; its own job
+  # keeps the core + api gates Node-free (web → api → statskills; the JS never touches the
+  # core). Type-check (svelte-check) + format (prettier) + tests (vitest) + a build.
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run format:check
+      - run: npm run test
+      - run: npm run build
