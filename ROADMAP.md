@@ -413,13 +413,16 @@ deadline is not close, so quality wins over speed.)
    **0%** unaided (single-task dependency broken); skills give **injected +95pp / agentic +75pp**, and
    the delivery effect **flips** (injected > agentic, because every task needs the skill) with a clean
    read→pass 6/6 mechanism. See FINDINGS Phase 6. Sharpens §0: the sign of injected−agentic is
-   task-mix-dependent. **← next:**
-3. **Injection dose-response arm (§4).** `injected · relevant_only` vs `injected · all`. Turns
-   "injection distracts" into a causal, dose-response test (bridges to GSM-DC) — now doubly motivated
-   by the Phase-6 flip. Pair with an **L0-description-only probe** (separate the discovery-surface
-   nudge from the body read, per Phase 6's confounding/heteroskedasticity result).
-4. **Reporting layer (§10).** Trajectory → structured, traceable report with figures; validate on
-   regression cases.
+   task-mix-dependent.
+3. **Injection dose-response arm (§4). ✅ BUILT + smoke-validated.** A `relevant` oracle router +
+   5-arm sweep {off, all·L1, all·L0, relevant·L1, agentic} on both task arms. **Causally explains the
+   flip:** the *distractor payload* is the lever — inject-all helps 0pp on the original arm while
+   inject-relevant recovers the full +12pp, and `relevant·L1` ≈ `agentic` (selectivity is the
+   mechanism, by injection or activation). Bonus: descriptions (L0) carry nameable fixes but the body
+   is needed for procedural ones. See FINDINGS Phase 7. Closes the §0 loop. **← next:**
+4. **Model axis + reporting layer (§10).** Generalise the dose-response across capability (Sonnet ±
+   Opus), then the deliverable track: trajectory → structured, traceable report with figures; validate
+   on regression cases.
 5. **Web app (§11).** `apps/api` (jobs + SSE) then `apps/web` (clickable UI with the skills/delivery
    toggle).
 6. **Headline campaign.** `{haiku, sonnet, ±opus} × {off, injected·all, injected·relevant, agentic}`

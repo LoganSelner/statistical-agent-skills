@@ -26,6 +26,16 @@ command in [Reproducibility](#reproducibility).
   every time, and the failures are all non-read trials — the per-trial "right skill → solve" story the
   monogenic arm couldn't support. §0 sharpens: the *sign* of injected−agentic tracks the fraction of
   tasks that need the skill.
+- **The flip, explained — selectivity is the lever (the cleanest result, §0 delivered):** a 5-arm
+  dose-response separates *what* is injected from *how much*. Injecting **all** skills helps **0pp** on
+  the original arm (`all·L1` = off = 60%); injecting **only the task-relevant** skill recovers the full
+  **+12pp** (`rel·L1` = 72%) — the five distractor skills cost the *entire* gain (MC alone: 0% under
+  all-injection → 100% under relevant-injection). And **`rel·L1` ≈ agentic** (both 72%): agent-
+  activation's benefit *is* selectivity, reproducible by oracle-relevant injection. Where every task
+  needs the skill (regression), there's nothing to distract, so `rel·L1` = `all·L1` = 100% > agentic
+  75% (under-engagement). Bonus (resolution × difficulty): descriptions alone (`all·L0`) carry
+  *nameable* fixes (confounding, robust SEs → 100%) but not *procedural* ones (leverage, non-linearity
+  → 20%; `all·L0` regression 60% vs `all·L1` 100%).
 - **The hard precondition:** this only appears on a **frontier** model. Local coder models
   (qwen2.5-coder 7B/14B, qwen3-14B) **never read an offered skill** (0/55 agentic trials) — skill
   *invocation* is an emergent capability they sit below.
@@ -150,11 +160,49 @@ Per-task pass-frequency (off / L1 / agentic): `reg-confounding` 0/100/100, `reg-
 - **Caveat:** N=5 (reads N=6) — the read→pass gap is clean and directional but small-N; the headline
   campaign (higher N) will firm it.
 
+### Phase 7 — injection dose-response (the flip, explained: selectivity is the lever)
+`results/matrix-20260630T051151Z` (original) + `…T053552Z` (regression), N=5 — a 5-arm delivery sweep
+{off, injected·all·L1, injected·all·L0, injected·relevant·L1, agentic} on Haiku, where `relevant` is a
+deterministic oracle router (the task's concepts → its target skill(s)).
+
+| arm | original | regression |
+|---|---|---|
+| off | 60% [60, 60] | 10% [0, 20] |
+| injected · all · L1 | 60% [60, 60] | 100% [100, 100] |
+| injected · all · L0 (descriptions only) | 60% [60, 60] | 60% [50, 70] |
+| injected · **relevant** · L1 | **72% [64, 80]** | 100% [100, 100] |
+| agentic | 72% [64, 80] | 75% [60, 90] |
+
+- **Distraction is real and large — measured causally.** Original arm: injecting *all* 6 skills
+  (`all·L1`) helps **0pp** (= off, 60%); injecting *only the relevant* skill (`rel·L1`) recovers the
+  full **+12pp [+4, +20]** (72%). The five distractor skills cost the *entire* gain. The per-task
+  smoking gun is multiple-comparison correction: **0% under all-injection** (the MC skill is buried
+  among distractors) → **100% under relevant-injection**. This is GSM-DC dose-response, applied to
+  *skills* as a *delivery* variable — the §0 contribution, now causal.
+- **The flip is explained: selectivity is the lever, not "agentic magic."** `rel·L1` ≈ `agentic` (both
+  72%) on the original arm — agent-activation's benefit *is* selectivity, reproducible by oracle-
+  relevant injection. On regression, `rel·L1` = `all·L1` = 100% > agentic 75%: with no distractors to
+  avoid, injection's reliable delivery beats agentic's under-engagement. So **agentic ≈ relevant-
+  injection; both beat inject-all when distractors are present, and lose to it only via under-
+  engagement when they aren't.**
+- **Resolution × procedure difficulty (the Phase-6 L0 nudge, resolved).** Descriptions alone (`all·L0`)
+  suffice for *nameable* fixes — regression confounding 100%, heteroskedasticity 100% (the description
+  cues "control for confounders" / "use robust SEs") — but not *procedural* ones that need the body:
+  influence 20%, non-linearity 20% (Cook's distance, the quadratic term). Hence `all·L0` regression =
+  60% vs `all·L1` 100% (−40pp); on the original arm `all·L0` = 60% = off.
+- **Honest nuance:** even a *relevant* skill can mislead on an already-solved task — `rel·L1` dropped
+  `trap-welch` 100→60% (the test-selection skill flipped two trials to the wrong "Yes") — but the MC
+  recovery dominates (+12 net). And off-regression was 10% here (Haiku sometimes controls for the
+  confounder unprompted) vs the 0% Phase-6 draw; both show large headroom.
+
 ## Interpretation
 
-1. **Delivery is decisive.** Agent-activated delivery wins because it is *selective* — the model
-   pulls only the procedure it needs, with none of injection's context-pollution cost on tasks it
-   already handles. This is the practical case for progressive disclosure, measured.
+1. **Delivery is decisive, and the lever is *selectivity* (now causal, Phase 7).** A dose-response
+   isolates it: injecting *only the relevant* skill matches agent-activation (both 72% on the original
+   arm) and beats injecting *all* skills (60%) — the distractor payload, not the delivery channel, is
+   what costs the gain. Agent-activation is one way to get selectivity (the model self-selects);
+   oracle-relevant injection is another (the experimenter selects). The practical case for progressive
+   disclosure, measured as a correctness effect.
 2. **Capability is a precondition.** The same agentic mechanism yields *zero* on local models
    because they never invoke skills. Matches SkillsBench's preconditions (the model must engage) and
    the literature that tool/skill invocation is emergent with scale.
@@ -171,6 +219,11 @@ Per-task pass-frequency (off / L1 / agentic): `reg-confounding` 0/100/100, `reg-
    it, while injection delivers reliably). So the correctness-optimal delivery mechanism depends on the
    fraction of tasks that need the skill — the cleanest evidence yet for delivery-mechanism-as-a-lever
    (§0), and a caution against reading "agentic > injected" as universal.
+6. **Disclosure level interacts with procedure difficulty (Phase 7).** A skill's *description* alone
+   delivers *nameable* fixes (control for confounders, use robust SEs) but the *body* is needed for
+   *procedural* ones (Cook's-distance diagnostics, adding a quadratic term). The L0→L1 step is not
+   uniform — it pays off only where the procedure isn't already cued by the name. This refines
+   progressive disclosure beyond "less context is better."
 
 ## Threats to validity
 
@@ -198,15 +251,16 @@ uv run python scripts/run_matrix.py configs/experiments/<grid>.yaml # off/.../ar
 | engagement (7B/14B × off/L1/agentic) | `engagement_grid.yaml` | `results/matrix-engagement-n5/` |
 | **Haiku traps (off/L1/agentic)** | `haiku_grid.yaml` | `results/matrix-haiku-n5/` |
 | **Haiku regression traps (off/L1/agentic)** | `regression_haiku_grid.yaml` | `results/matrix-<ts>/` |
+| **Haiku dose-response (5 arms, original)** | `dose_traps_haiku.yaml` | `results/matrix-<ts>/` |
+| **Haiku dose-response (5 arms, regression)** | `dose_regression_haiku.yaml` | `results/matrix-<ts>/` |
 
 Haiku needs `ANTHROPIC_API_KEY`; local grids need a reachable Ollama (`OLLAMA_BASE_URL`). All need
 the Docker sandbox image (`make sandbox-image`). Each cell's `run.json` carries full provenance.
 
 ## What's next
 
-The regression broadening turned "do skills help" into "*which delivery* helps, and *when*" — the
-delivery effect's sign is now a measured, task-mix-dependent quantity. Next: the **dose-response
-injection arm** (`injected · relevant_only` vs `all`) to pin why injection wins when every task needs
-the skill; the **model axis** (Sonnet ± Opus); an **L0-description-only probe** to separate the
-discovery-surface nudge from the body read; and higher N for the headline campaign — prioritised in
-[ROADMAP.md](ROADMAP.md) §15.
+The dose-response closed the §0 loop: skill delivery is a correctness lever *via selectivity*, and the
+distractor payload — not the channel — is what costs the gain. The mechanism is now understood on
+Haiku across both task arms. Next: the **model axis** (Sonnet ± Opus) to test how the
+capability×delivery×task-mix surface generalises; higher **N** to tighten the dose-response CIs; and
+then the **reporting layer / deliverable track**. Prioritised in [ROADMAP.md](ROADMAP.md) §15.

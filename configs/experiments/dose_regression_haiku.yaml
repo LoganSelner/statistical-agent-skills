@@ -1,0 +1,23 @@
+# Injection DOSE-RESPONSE on the REGRESSION trap arm (Claude Haiku 4.5): same 5 arms as
+# dose_traps_haiku.yaml, on authored_regression. Here every task needs the skill, so the
+# expectation is rel_l1 ~= all_l1 (no distractors to shed; injection already wins) — the
+# regression-side half of the dose-response contrast. Needs ANTHROPIC_API_KEY + Docker.
+#   python scripts/gen_authored_data.py                       # generate the trap CSVs first
+#   python scripts/run_matrix.py configs/experiments/dose_regression_haiku.yaml
+#
+# Quote "off" (a bare off is a YAML 1.1 boolean). Injected delivery is the default; only the
+# agentic arm sets delivery explicitly.
+trials: 5
+baseline_arm: "off"
+arms:
+  "off": {}
+  all_l1: { mode: curated, resolution: L1, router: forced, library: statistics }
+  all_l0: { mode: curated, resolution: L0, router: forced, library: statistics }
+  rel_l1: { mode: curated, resolution: L1, router: relevant, library: statistics }
+  agentic: { mode: curated, delivery: agentic, resolution: L1, router: forced, library: statistics }
+cells:
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: "off" }
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: all_l1 }
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: all_l0 }
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: rel_l1 }
+  - { model: "claude-haiku-4-5", config: trap_regression_haiku.yaml, arm: agentic }

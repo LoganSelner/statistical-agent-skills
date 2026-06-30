@@ -5,6 +5,7 @@ from __future__ import annotations
 from statskills.core.registry import registry
 from statskills.skills.router import (
     forced as _forced,  # noqa: F401 - registers "forced"
+    relevant as _relevant,  # noqa: F401 - registers "relevant"
 )
 from statskills.skills.schema import SkillRouter
 
