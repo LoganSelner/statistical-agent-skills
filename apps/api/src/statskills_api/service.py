@@ -17,22 +17,21 @@ they default to the Claude provider and the Docker sandbox.
 from __future__ import annotations
 
 from dataclasses import replace
+import logging
 from pathlib import Path
+from typing import Any
 
 from statskills.agent.llm import LLM, build_llm, resolve_llm_config
 from statskills.agent.loop import ReActAgent
 from statskills.experiments.runner import run_with_skills
-from statskills.reporting import (
-    FiguresUnavailable,
-    Report,
-    compose_report,
-    generate_figures,
-)
+from statskills.reporting import Figure, Report, compose_report, generate_figures
 from statskills.sandbox.base import Executor
 from statskills.sandbox.docker import DEFAULT_IMAGE, DockerExecutor
 from statskills.skills import build_skill_context
 from statskills.tasks.schema import Dataset, Task
 from statskills_api.stream import RunTap, StepEvent, TappingExecutor, TappingLLM
+
+logger = logging.getLogger(__name__)
 
 _DELIVERIES = ("off", "injected", "agentic")
 
@@ -102,8 +101,24 @@ def run_analysis(
     tap.emit(StepEvent(kind="status", text="composing report"))
     report = compose_report(trajectory, task, base_llm)
 
-    try:
-        figures = generate_figures(trajectory, task, out_dir)
-    except FiguresUnavailable:
-        figures = ()
+    figures = _safe_figures(trajectory, task, out_dir, tap)
     return replace(report, figures=figures)
+
+
+def _safe_figures(
+    trajectory: dict[str, Any], task: Task, out_dir: Path, tap: RunTap
+) -> tuple[Figure, ...]:
+    """Best-effort report figures — never let a plot failure discard a valid report.
+
+    Figures are an enhancement on top of an already-composed, verified report. Besides
+    the missing-``reporting``-extra case (``FiguresUnavailable``), a degenerate-but-
+    fittable dataset (e.g. NaN/inf rows) can make pandas/statsmodels/matplotlib raise
+    during the fit or render. Any such failure is logged and surfaced to the client as a
+    status event; the report is returned without figures rather than failing the run.
+    """
+    try:
+        return generate_figures(trajectory, task, out_dir)
+    except Exception:
+        logger.warning("figure generation failed for %s", task.id, exc_info=True)
+        tap.emit(StepEvent(kind="status", text="figures unavailable; report has none"))
+        return ()

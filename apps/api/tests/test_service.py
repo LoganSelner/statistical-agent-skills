@@ -66,6 +66,32 @@ def test_run_analysis_composes_verified_report_with_figure(
     assert (out_dir / figure.path).stat().st_size > 0
 
 
+def test_run_analysis_survives_a_figure_failure(
+    tmp_path: Path, fake_llm, fake_executor, monkeypatch
+) -> None:
+    # A figure crash (e.g. a degenerate-but-fittable CSV that breaks the OLS fit/render)
+    # must not discard the already-composed report — figures are best-effort.
+    def _boom(*_a: object, **_k: object) -> tuple:
+        raise ValueError("degenerate OLS fit")
+
+    monkeypatch.setattr("statskills_api.service.generate_figures", _boom)
+    out_dir = tmp_path / "job2"
+    out_dir.mkdir()
+
+    report = run_analysis(
+        prompt="Is the effect of x on y significant?",
+        dataset_path=_regression_csv(tmp_path),
+        delivery="off",
+        out_dir=out_dir,
+        tap=RunTap(),
+        llm=fake_llm(*_SCRIPT),
+        executor=fake_executor(outputs={_CODE: _OBSERVATION}),
+    )
+
+    assert report.figures == ()  # fell back to no figures
+    assert report.results[0].verified is True  # the report itself is intact
+
+
 def test_skills_config_maps_the_delivery_toggle() -> None:
     assert skills_config("off") is None
     assert skills_config("agentic") == {
