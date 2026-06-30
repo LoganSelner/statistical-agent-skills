@@ -115,8 +115,23 @@
     border-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
+  /* Visually hidden but still focusable and in the accessibility tree (NOT display:none),
+     so the delivery toggle stays keyboard- and screen-reader-operable; the focus ring
+     below shows on the enclosing segment. */
   .segment input {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .segment:has(input:focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   .seg-label {
     font-weight: 600;
