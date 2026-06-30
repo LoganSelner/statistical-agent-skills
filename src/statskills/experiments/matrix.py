@@ -99,9 +99,10 @@ class MatrixIO:
 
     ``run_cell`` executes one cell over N trials into the given directory and returns
     the run directory; ``grade`` scores a run directory; ``load_scores`` reads an
-    already-graded one (for resume); ``engagement`` reads (or derives) the skill-read
-    records for a run directory, for both fresh and resumed cells.
-    :func:`default_matrix_io` wires the production implementations (the library runner +
+    already-graded one (for resume); ``engagement`` (re)derives the skill-read records
+    from the run directory's *current* trajectories — always recomputed (a cheap scan),
+    so a re-run cell never reports a previous run's reads. :func:`default_matrix_io`
+    wires the production implementations (the library runner +
     :mod:`statskills.evaluation.runs`).
     """
 
@@ -299,7 +300,11 @@ def default_matrix_io(*, executor: str | None = None) -> MatrixIO:
     :func:`parse_manifest` (tests inject a fake ``MatrixIO``) does not pull the run
     stack.
     """
-    from statskills.evaluation.runs import grade_run, load_engagement, load_scores
+    from statskills.evaluation.runs import (
+        extract_run_engagement,
+        grade_run,
+        load_scores,
+    )
     from statskills.experiments.runner import execute_run_config
 
     def run_cell(cell: Cell, trials: int, out_dir: Path) -> Path:
@@ -310,9 +315,11 @@ def default_matrix_io(*, executor: str | None = None) -> MatrixIO:
             executor=executor,
         )
 
+    # Engagement always recomputes from the cell's current trajectories (a cheap scan);
+    # a re-run never shows an earlier run's reads. (load_scores stays resume-only.)
     return MatrixIO(
         run_cell=run_cell,
         grade=grade_run,
         load_scores=load_scores,
-        engagement=load_engagement,
+        engagement=extract_run_engagement,
     )

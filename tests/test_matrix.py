@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from statskills.experiments import (
     Manifest,
     MatrixIO,
     compose_cell_config,
+    default_matrix_io,
     parse_manifest,
     run_matrix,
 )
@@ -176,6 +178,27 @@ def test_run_matrix_folds_engagement_into_cell_result(tmp_path: Path) -> None:
     assert by_arm["L1"].read_rate == 0.5  # 1 of 2 cells read a skill
     assert by_arm["L1"].skill_read_counts == {"s": 1}
     assert by_arm["L1"].per_task_read_freq == {"a": 0.5}
+
+
+def test_default_io_engagement_recomputes_from_trajectories(tmp_path: Path) -> None:
+    # A re-run rewrites trajectories.jsonl but a stale engagement.jsonl can linger. The
+    # runner must recompute engagement from the new trajectories, never load the
+    # stale file (which would leak a previous run's reads into matrix.json).
+    run_dir = tmp_path / "cell"
+    run_dir.mkdir()
+    (run_dir / "trajectories.jsonl").write_text(
+        json.dumps(
+            {"task_id": "t", "trial": 0, "steps": [{"code": 'open("skills/mc.md")'}]}
+        )
+        + "\n"
+    )
+    (run_dir / "engagement.jsonl").write_text(
+        json.dumps({"task_id": "t", "trial": 0, "skills_read": []}) + "\n"  # stale
+    )
+
+    records = default_matrix_io().engagement(run_dir)
+
+    assert [r.skills_read for r in records] == [("mc",)]  # recomputed, not the stale []
 
 
 def test_parse_manifest_resolves_configs_arms_and_label(tmp_path: Path) -> None:
