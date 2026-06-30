@@ -61,8 +61,10 @@ flag), `retry.py` (`retry_transient` — a tenacity factory; type-based, provide
 `parser.py` reads an Anthropic-style `SKILL.md` (frontmatter + body + `## Examples` + bundled
 resources) into a `Skill`. `loader.py` controls **progressive disclosure** — `render(skill,
 level)` for L0 (name+desc) / L1 (+body) / L2 (+examples) / L3 (+resources), and
-`render_discovery` (the L0 list). `router/forced.py` selects which skills a task gets (today:
-all). `context.py` (`SkillContext` + `build_skill_context`) turns a config `skills:` block into
+`render_discovery` (the L0 list). A router selects which skills a task gets: `router/forced.py`
+(all skills — the oracle "everything available") or `router/relevant.py` (only the task's
+concept-mapped skill(s) — the oracle-relevance arm for the injection dose-response).
+`context.py` (`SkillContext` + `build_skill_context`) turns a config `skills:` block into
 a per-task payload, keyed on **`delivery`**:
 - `injected` → a single rendered payload appended to the system prompt (the agent is passive).
 - `agentic` → an L0 *discovery* surface in the prompt + the skill bodies staged as **files in
@@ -142,8 +144,9 @@ Run/grade are separate so re-grading (e.g. after a verifier fix) never re-runs t
 - **A task set** — add a loader + register it in `tasks/loader.py`; add a verifier `kind` if
   needed.
 - **A verifier / router** — register a new `@registry.register("verifier"|"router", name)` impl.
-- **A skills router** — `description_match` / `model_choice` are designed-for but unbuilt
-  (only `forced` exists); drop a new impl into `skills/router/`.
+- **A skills router** — `forced` (all) and `relevant` (oracle concept→skill map) exist;
+  `description_match` / `model_choice` (learned relevance) are designed-for but unbuilt — drop a
+  new impl into `skills/router/`.
 
 ## Provenance & reproducibility
 
