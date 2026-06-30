@@ -1,0 +1,40 @@
+:root {
+  --bg: #0f1117;
+  --panel: #181b23;
+  --border: #2a2e3a;
+  --text: #e6e8ee;
+  --muted: #9aa3b2;
+  --accent: #6ea8fe;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+code,
+pre {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", monospace;
+  font-size: 0.85em;
+}

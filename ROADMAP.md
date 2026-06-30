@@ -444,8 +444,13 @@ deadline is not close, so quality wins over speed.)
      stays byte-for-byte untouched (the trajectory is identical with or without it). The
      off/injected/agentic toggle maps onto the skills block — the demo *is* the finding.
      Hermetic tests (fake LLM + in-memory executor, no Docker/API) on a separate CI job.
-   - **Frontend (`apps/web`). ← next.** The clickable UI (own `package.json`) renders this
-     `Report` with the live SSE steps and the skills/delivery toggle; `web → api → statskills`.
+   - **Frontend (`apps/web`). ✅ BUILT.** A Vite + Svelte 5 + TS single-page app (a Node
+     package outside the Python workspace; `web → api → statskills`, its own CI job) renders
+     the run: a submit form with the **off/injected/agentic** toggle, the agent's steps
+     streaming live over SSE, and the traceable, figure-bearing `Report`. Relative URLs only
+     (dev = Vite proxy; prod = the API's opt-in `STATSKILLS_WEB_DIST` static mount, one
+     origin). Flipping the toggle and re-running *is* the demo — the §0 finding made
+     interactive. The web app (§11) is now complete.
    - **Headline campaign** (±Opus, N≥20 over the `model × delivery` grid + `make_figures.py`,
      deferred for now) tightens the CIs for the writeup.
 

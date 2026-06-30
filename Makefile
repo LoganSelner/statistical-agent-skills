@@ -9,7 +9,7 @@ UV ?= uv
 # --- Phony ---
 .PHONY: help bootstrap update env sandbox-image slice dabench-data dabench grade \
 	compare test test-all fmt fmt-check lint typecheck typecheck-api test-api \
-	qa qa-api precommit clean deep-clean
+	qa qa-api web-install web-dev web-build web-check precommit clean deep-clean
 
 help: ## Show available targets
 	@awk '\
@@ -90,6 +90,19 @@ test-api: ## Run the apps/api test suite (hermetic; no Docker/API key)
 qa: fmt-check typecheck lint test qa-api ## Full quality gate (core + apps/api)
 
 qa-api: typecheck-api test-api ## apps/api gate (mypy + pytest of the member)
+
+# ---------- Web frontend (apps/web; needs Node, separate from the Python gate) ----------
+web-install: ## Install the apps/web Node toolchain (npm ci)
+	cd apps/web && npm ci
+
+web-dev: ## Run the Vite dev server (proxies /runs + /healthz to the API on :8000)
+	cd apps/web && npm run dev
+
+web-build: ## Build the production frontend bundle into apps/web/dist
+	cd apps/web && npm run build
+
+web-check: ## Frontend gate: svelte-check (types) + prettier + vitest
+	cd apps/web && npm run check && npm run format:check && npm run test
 
 precommit: ## Run all pre-commit hooks on tracked files
 	$(UV) run pre-commit run --all-files
