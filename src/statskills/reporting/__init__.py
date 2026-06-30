@@ -12,17 +12,27 @@ uses the agent's ``LLM``.
 
 from statskills.reporting.compose import ReportComposeError, compose_report
 from statskills.reporting.evidence import ObservedStep, observed_steps
+from statskills.reporting.figures import FiguresUnavailable, generate_figures
 from statskills.reporting.render import render_markdown
-from statskills.reporting.schema import Claim, Report, ReportSchemaError, parse_report
+from statskills.reporting.schema import (
+    Claim,
+    Figure,
+    Report,
+    ReportSchemaError,
+    parse_report,
+)
 from statskills.reporting.verify import unverified, verify
 
 __all__ = [
     "Claim",
+    "Figure",
+    "FiguresUnavailable",
     "ObservedStep",
     "Report",
     "ReportComposeError",
     "ReportSchemaError",
     "compose_report",
+    "generate_figures",
     "observed_steps",
     "parse_report",
     "render_markdown",
