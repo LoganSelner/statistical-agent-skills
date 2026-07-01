@@ -1,6 +1,6 @@
 # Statistical Agent Skills — Research Roadmap
 
-Status: **Phases 0–5 built; first result in; consolidating and broadening (Phase 6+).**
+Status: **Research spine complete across two frontier models (Phases 0–8); the deliverable track (reporting layer + web app) is built. Active: the validity decomposition (§9, §15) and a higher-N / ≥3-model campaign.**
 
 This document is the project anchor: research framing, committed design decisions, the
 experimental condition matrix, and the phased roadmap. It is the *design + plan* doc — for the
@@ -13,13 +13,13 @@ the same skills — via *selective* engagement (the model reads only the skill i
 precondition is a frontier model: local coder models never invoke an offered skill (0/55 trials).
 One trap (`correlation`) resists every condition — a task-framing limit, not a skill one.
 
-**What that result is currently made of (the honest caveat that drives the next phase).** The whole
-+12pp is carried by a **single task** — `trap-multiple-comparisons` (0→60%); agentic is flat on the
-other four traps. And at the per-trial level the mechanism is noisy: one MC solve happened after
-reading the *assumption-checks* skill (not the MC one), and one trial that *did* read the MC skill
-still failed (read-MC → 2/3 passed; didn't → 1/2). So the aggregate effect is real but **monogenic**,
-and the per-trial "reads the right skill → solves" story is **not** established at N=5. Breaking that
-single-task dependency is the top priority (§15).
+**What that result rests on now (updated).** The original +12pp was **monogenic** — carried by a
+single task (`trap-multiple-comparisons`, 0→60%), with a per-trial mechanism too noisy to call at N=5
+(one MC solve followed the *assumption-checks* read, and one MC-reading trial still failed). Phase 6
+**broke that single-task dependency**: four authored *regression* traps give large, multi-procedure
+gains (injected +95pp / agentic +75pp) with a clean read→pass mechanism (6/6). The live caveats are now
+different — the Haiku/Sonnet engagement difference is **n=2** (model-dependent, not a capability law;
+§0), and the per-trial "right skill → solves" story wants the **higher-N campaign** (§15).
 
 ---
 

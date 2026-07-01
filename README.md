@@ -9,11 +9,12 @@ toggleable conditions — skills off / curated, delivery (injected vs agent-acti
 disclosure level (L0–L3), task arm — and scores closed-form answers with deterministic
 verifiers, aggregating trials into bootstrapped condition deltas.
 
-> **Status: harness complete; first result in (consolidation phase).** On **Claude Haiku 4.5**,
-> agent-activated ("agentic") skill delivery raises trap-arm pass rate **+12pp [+4, +20]** over
-> no-skills and beats injecting the same skills — while local coder models never invoke an offered
-> skill at all. See **[FINDINGS.md](FINDINGS.md)** for the results, **[ARCHITECTURE.md](ARCHITECTURE.md)**
-> for the system as built, and **[ROADMAP.md](ROADMAP.md)** for framing + next steps.
+> **Status: research spine complete across two frontier models; reporting layer + web-app demo built.**
+> On **Claude Haiku 4.5**, agent-activated ("agentic") skill delivery raises trap-arm pass rate
+> **+12pp [+4, +20]** over no-skills and beats injecting the same skills — while local coder models
+> never invoke an offered skill at all. See **[FINDINGS.md](FINDINGS.md)** for the results,
+> **[ARCHITECTURE.md](ARCHITECTURE.md)** for the system as built, and **[ROADMAP.md](ROADMAP.md)** for
+> framing + next steps.
 
 ## Prerequisites
 
