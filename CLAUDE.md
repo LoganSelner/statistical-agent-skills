@@ -10,9 +10,10 @@ inferential-statistics tasks?** It runs a CodeAct agent over data-analysis tasks
 toggleable skill conditions, and scores closed-form answers — then aggregates trials into bootstrapped
 condition deltas.
 
-**Status:** harness complete; the headline result is in — on Claude Haiku 4.5, *agent-activated*
-skill delivery beats no-skills **+12pp [+4, +20]** and beats injection, while local models can't engage
-at all. Now in the consolidation/analysis phase.
+**Status:** research spine complete across two frontier models (Haiku + Sonnet) — on Claude Haiku 4.5,
+*agent-activated* skill delivery beats no-skills **+12pp [+4, +20]** and beats injection (the lever is
+*relevance routing*; local models can't engage at all). The deliverable track (reporting layer + web
+app) is built. Active: the validity decomposition and a higher-N / ≥3-model campaign.
 
 ## The map (and which doc to read)
 
