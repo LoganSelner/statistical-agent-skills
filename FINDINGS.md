@@ -36,8 +36,9 @@ command in [Reproducibility](#reproducibility).
   75% (under-engagement). Bonus (resolution × difficulty): descriptions alone (`all·L0`) carry
   *nameable* fixes (confounding, robust SEs → 100%) but not *procedural* ones (leverage, non-linearity
   → 20%; `all·L0` regression 60% vs `all·L1` 100%).
-- **Capability reframes the delivery story — "agentic" is not reliably selective (model axis, newest,
-  on Sonnet 4.6):** the selectivity lever *strengthens* — relevant-only injection beats inject-all by
+- **Model choice reframes the delivery story — "agentic" is not reliably selective (model axis,
+  on Sonnet 4.6; n=2, model-dependent per SRA, not a demonstrated capability law):** the selectivity
+  lever *strengthens* — relevant-only injection beats inject-all by
   **+36pp** on Sonnet (`rel·L1` 100% vs `all·L1` 64%), and **Sonnet + `rel·L1` = 100% on both arms**
   (the right skill ceilings a capable model). But **agent-activation stops being selective**: Sonnet
   *over-reads* (agentic read-rate **84–100%** vs Haiku's 10–36%), re-importing the distraction, so its
@@ -204,7 +205,7 @@ deterministic oracle router (the task's concepts → its target skill(s)).
   recovery dominates (+12 net). And off-regression was 10% here (Haiku sometimes controls for the
   confounder unprompted) vs the 0% Phase-6 draw; both show large headroom.
 
-### Phase 8 — model axis (capability reframes delivery: "agentic" ≠ selective)
+### Phase 8 — model axis (model choice reframes delivery: "agentic" ≠ reliably selective; n=2)
 `results/matrix-20260630T064130Z` (original) + `…T075725Z` (regression), N=5 — the 5-arm sweep on
 **Sonnet 4.6 alongside Haiku 4.5** in one run.
 
@@ -217,7 +218,9 @@ deterministic oracle router (the task's concepts → its target skill(s)).
 | agentic | 72% | 72% | 75% | 85% |
 | *agentic read-rate* | *36%* | ***84%*** | *10%* | ***100%*** |
 
-- **Engagement is capability-dependent — and it reverses.** Haiku *under*-engages, *selectively*
+- **Engagement is model-dependent — and it flips between our two models** (n=2; per SRA, loading is
+  model-dependent rather than scale-monotonic, so we do not attribute this to capability). Haiku
+  *under*-engages, *selectively*
   (read-rate 10–36%, only where a procedure is missing); Sonnet *over*-engages, *non-selectively*
   (84–100%, reading nearly every task's skills). The "selective engagement" that made Haiku's agentic
   win is a Haiku *calibration*, not a property of the delivery channel.
@@ -268,12 +271,44 @@ deterministic oracle router (the task's concepts → its target skill(s)).
    *procedural* ones (Cook's-distance diagnostics, adding a quadratic term). The L0→L1 step is not
    uniform — it pays off only where the procedure isn't already cued by the name. This refines
    progressive disclosure beyond "less context is better."
-7. **The lever is *relevance*; agent-activation is a capability-dependent approximation of it (Phase
-   8).** Selectivity wins for both models, but Haiku reaches it by *under*-reading and Sonnet defeats it
+7. **The lever is *relevance*; agent-activation is a *model-dependent* approximation of it (Phase
+   8; n=2, per SRA not yet a capability trend).** Selectivity wins for both models, but Haiku reaches it by *under*-reading and Sonnet defeats it
    by *over*-reading — only oracle-relevant injection delivers it reliably (Sonnet + relevant = 100% on
    both arms). So the practical recommendation shifts from "let the agent activate skills" to "**route
    the *relevant* skill**"; agent-activation pays off only when the model's engagement is
    well-calibrated. This subsumes #1 and #5: "agentic > injected" was a Haiku calibration, not a law.
+
+## Relation to concurrent work (mid-2026)
+
+The general phenomenon here — injected skills can distract; selectivity helps — was measured
+concurrently in several venues: **SWE-Skills-Bench** (skills help only ~+1.2% on average and can
+*degrade* via context interference), **SkillsInjector** (packing skills degrades through attention
+dispersion), and **SkillReducer** (compressing skills *improves* quality — less-is-more). This links to
+the older distraction line (GSM-IC; GSM-DC, EMNLP 2025). So "delivery matters" is corroborated, not
+novel.
+
+How this record relates to that cluster (honestly):
+
+- **The delivery decomposition corroborates, it doesn't lead.** Phase 7 (inject-all ≈ off,
+  inject-relevant ≈ agentic) is the same cut as Skill-Retrieval-Augmentation's oracle / inject /
+  progressive-disclosure arms and Skill-Shadowing's selection-error vs context-overhead split. Our
+  value is a *clean, contamination-free, deterministically-verified* confirmation in inferential
+  statistics — not first-to-find.
+- **The Phase-8 engagement difference is model-dependent — not a "capability reversal."** Haiku
+  under-reads and Sonnet over-reads, but at n=2 this is confounded with model identity — exactly what
+  SRA warns when it finds loading is *model-dependent, not monotonic with scale*, and what "Agentic
+  Skills in the Wild" shows when higher loading rates fail to help. We report it as model-dependent
+  engagement calibration, consistent with that work, pending ≥3 models.
+- **What is genuinely distinctive is the domain and framing.** Every neighbor lives in software
+  engineering, tool/customer-service, or general agentic tasks; this is inferential statistics, with
+  contamination-free authored **validity traps** scored by a deterministic verifier — skills as
+  *validity correction* (the model is capable but confidently invalid), not capability extension. The
+  clearest route to a novel contribution is the **validity decomposition** (does the skill fix the
+  *specific* validity error), which the tool-domain neighbors structurally cannot measure.
+
+Neighbouring statistics-agent benchmarks (**StatABench, StatEval, DSAEval, StatQA, QRData**) evaluate
+statistical *capability*, not skills, and are candidate external task arms. Positioning is a standing
+practice — see ROADMAP §0–§1.
 
 ## Threats to validity
 
@@ -285,6 +320,15 @@ deterministic oracle router (the task's concepts → its target skill(s)).
   limited (the literature's biggest skill gains are in under-represented domains).
 - **Determinism vs stochasticity:** local CIs are degenerate (temp-0 determinism); only the frontier
   run produces meaningful intervals, so cross-model CI comparison is uneven.
+- **The Phase-8 engagement difference is n=2, confounded with model identity.** SRA finds skill loading
+  is model-dependent rather than scale-monotonic, so "capability reverses selectivity" is not supported
+  until ≥3 models (Opus + a cross-vendor) show a trend; we frame it as model-dependent engagement.
+- **The oracle-relevant arm is a diagnostic, not a method.** Giving exactly the right skill is optimal
+  by construction; identifying it without an oracle is the field's open routing problem. This arm
+  bounds the ceiling and isolates the mechanism; it does not propose a router.
+- **The effect may be a mid-capability window.** Sonnet already solves half the regression traps
+  unaided (off 50% vs Haiku 5%); at the true frontier (Opus / GPT-5.5 / Gemini 3.1) the traps may be
+  solved without skills and the delivery effect wash out — worth testing before resting on its durability.
 
 ## Reproducibility
 
@@ -313,7 +357,14 @@ the Docker sandbox image (`make sandbox-image`). Each cell's `run.json` carries 
 
 The model axis sharpened the thesis: the lever is **relevance routing**, and "agent-activation" only
 approximates it when engagement is calibrated (Haiku under-reads, Sonnet over-reads); oracle-relevant
-injection is the robust optimum (Sonnet + relevant = 100% both arms). The research spine is now strong
-across two frontier models. Next: **±Opus** (if warranted) and a **higher-N headline campaign** over
-this model×delivery grid to tighten the CIs, then pivot to the **deliverable track** (reporting layer →
-web app) with the science locked. Prioritised in [ROADMAP.md](ROADMAP.md) §15.
+injection is the robust optimum (Sonnet + relevant = 100% both arms). The research spine is strong
+across two frontier models, and the **deliverable track (reporting layer + web app) is already built**.
+Remaining, in priority order: (1) the **validity decomposition** — score whether a skill fixes the
+*specific* validity error (method / assumptions / interpretation / fabrication), the one axis the
+tool-domain neighbors cannot reach and our clearest route to a distinctive contribution; (2) a
+**higher-N headline campaign** (N≥20) plus **Opus and a cross-vendor model** (GPT-5.5 / Gemini 3.1 Pro)
+— enough model points to tell whether the Haiku/Sonnet engagement difference is a *trend* or a
+*model-idiosyncrasy* (SRA cautions the latter), and to check whether the effect **washes out** as
+frontier models solve the traps unaided; (3) an **external benchmark arm** (a StatABench / StatEval
+slice) and/or more traps past ~9; and (4) the **L0-description vs L1-body probe**. Prioritised in
+[ROADMAP.md](ROADMAP.md) §15–§16.

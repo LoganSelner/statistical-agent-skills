@@ -29,32 +29,44 @@ The original question — "do curated skills help statistical analysis?" — is 
 *general* level by SkillsBench, and the most useful, least-covered contribution this project can make
 is sharper:
 
-> **Skill *delivery mechanism* is a correctness lever, not just a token-budget one.** A correct,
-> generally-relevant skill becomes a *distractor* when force-injected on a task that does not need it;
-> agent-activated delivery's *selectivity* is what makes skills net-positive — and the size/direction
-> of this effect interacts with model capability.
+> **The correctness lever is *relevance routing*, not the delivery channel.** A correct, on-topic skill
+> still distracts when force-injected on a task that does not need it; delivering *only the relevant*
+> skill recovers the gain — whether the experimenter routes it (oracle injection) or the agent
+> self-selects (activation). Agent-activation is only a *proxy* for relevance routing, and how good a
+> proxy it is **varies by model** — in our two-model probe Haiku under-reads (stays selective, so
+> activation helps) while Sonnet over-reads (loses selectivity, re-importing the distraction); we treat
+> this as a model-dependent calibration, **not** a demonstrated capability law (see §1, and SRA below).
 
-This sits precisely at the intersection of two literatures that have not been connected:
+**The field caught up to the general phenomenon — so it is no longer the novelty.** Since this project
+began, several concurrent works measured that injected skills can degrade performance: SWE-Skills-Bench
+(skills help only marginally and can *degrade* via context interference — a holistic-skill /
+focused-task mismatch), SkillsInjector (packing skills degrades through attention dispersion), and
+SkillReducer (compressing skills *improves* quality — less-is-more). This connects to the older
+distraction line (GSM-IC; GSM-DC at EMNLP 2025, where accuracy falls as distractor *count* rises).
+"Injected skills distract; selectivity helps" is now corroborated design wisdom, not our contribution.
 
-- **Distraction.** Irrelevant context degrades reasoning, with a measured dose-response (GSM-IC; and
-  GSM-DC at EMNLP 2025, where accuracy falls as distractor count rises). This line studies distractor
-  *sentences in the problem* — never *skills* or *delivery*.
-- **Progressive disclosure.** The field asserts that injecting full skill bodies causes "context rot"
-  and that detailed instructions "become reasoning noise rather than guidance" — but as *design
-  wisdom*, justified by token economy, **not** measured as a *correctness* effect. Adjacent skills
-  work optimizes *which* skills reach the agent (SkillFlow, SkillRouter measure retrieval/use-rate) or
-  studies skill *generation* (SkillLearnBench) and *security* (Skill-Inject) — none treats
-  preload-vs-activate as a controlled correctness variable.
+**What remains distinctive (after a closer read of the nearest neighbors).** The two *mechanistic*
+results — the delivery-channel decomposition (inject-all ≈ off, inject-relevant ≈ agentic) and the
+model-dependent engagement (Haiku under-reads, Sonnet over-reads) — are, on closer inspection,
+**corroborated rather than unprecedented**: Skill-Retrieval-Augmentation runs the same
+oracle / inject / progressive-disclosure arms and reports loading is *model-dependent, not monotonic
+with scale*; "Agentic Skills in the Wild" runs the same force-load / agent-decide / distractor
+comparison and finds higher loading need not help; DecisionBench ablates the same
+preloaded-vs-on-demand delivery axis; Skill-Shadowing decomposes the same drop into selection-error vs
+context-overhead. So we present these as **clean, contamination-free confirmation in a controlled
+statistics setting**, not as first-to-find — and we do **not** claim a "capability reversal": at n=2
+(Haiku, Sonnet) the engagement difference is confounded with model identity, exactly the caution SRA
+raises. What *is* distinctive is (1) the **inferential-statistics validity-trap domain** — every
+neighbor lives in software engineering, tool/customer-service, or general agentic tasks — and (2) the
+**framing shift**: in a capability-saturated domain the model is *able* but *confidently invalid*, so a
+skill's job is **validity correction**, not capability extension. The route to a genuinely novel
+contribution is (3) the **validity decomposition** (§9, now an active direction): measuring whether a
+skill fixes the *specific* validity error — a dimension the tool-domain neighbors structurally cannot
+access, because their tasks have no "executes fine but is invalid" failure mode.
 
-Our `injected = off + MC − mwu − welch` decomposition is the measured, within-model version of what
-the literature only asserts. (Converging evidence from a different lever: a multi-agent study found
-that giving each task its own worker *insulates the model from context interference* by not diluting
-attention across irrelevant material.) The statistics-trap domain is the **testbed**, not the
-headline — closed-form, method-free, verifiable, with a known structure for *where* a procedure is
-genuinely missing.
-
-**This reframing is the spine; the professor's deliverables (regression, a report, a clickable app)
-ride alongside it on the same core — see §3.**
+The statistics validity-trap instrument is the distinctive, **contamination-free**, deterministically-
+verified testbed this rests on. **This is the spine; the professor's deliverables (regression, a
+report, a clickable app) ride alongside it on the same core — see §3.**
 
 ---
 
@@ -77,8 +89,10 @@ tasks, and how does that interact with model capability?
   *test selection* but diverging on *assumption checking* and *validity*, with separate work flagging
   *fabrication*. The lift from skills concentrates in assumptions / correction / traps /
   anti-fabrication — **not** "which test" — which shapes task weighting (§5).
-- Gap we target (§0): the delivery-mechanism-as-correctness-lever question, in a focused inferential
-  domain, on tasks that do **not** pre-specify the method.
+- Gap we target (§0): not *whether* delivery matters (now shown concurrently) but *what the lever is*
+  — relevance routing vs the activation channel — and how engagement **varies by model** (model-
+  dependent per SRA, not yet a capability trend), in an inferential-statistics validity-trap domain, on
+  tasks that do **not** pre-specify the method.
 
 **The constraint insight (shapes task design).** Auto-gradable benchmarks like InfiAgent-DABench make
 tasks closed-form partly by baking the method into the task constraints. That removes the exact
@@ -94,9 +108,36 @@ variable bias & Simpson's paradox, influential points/leverage, multicollinearit
 Out of scope: **regression-as-prediction / ML / AutoML**, causal inference beyond confounding
 illustrations, Bayesian methods, time-series forecasting.
 
-**Primary outcome (LOCKED).** Task **pass rate** on closed-form answers. Deferred (seamed, not
-implemented): validity decomposition (method / assumptions / interpretation / fabrication), trajectory
+**Primary outcome (LOCKED).** Task **pass rate** on closed-form answers. **Now promoted to an active
+direction (§9, §15):** the **validity decomposition** — does the skill fix the *specific* validity
+error (method / assumptions / interpretation / fabrication) — the one axis the tool-domain literature
+cannot reach, and thus our clearest route to a distinctive contribution. Still seamed: trajectory
 error-mode classification, integrity-under-pressure probing.
+
+### Concurrent work & positioning (mid-2026)
+
+The area moves fast; keeping positioning current is a standing practice (see §0). As of mid-2026:
+
+- **Delivery/injection is now a measured phenomenon — including its close neighbors.** Beyond the
+  general result (SWE-Skills-Bench 2603.15401, SkillsInjector 2605.29794, SkillReducer 2603.29919,
+  SKILL0 2604.02268, ClawsBench 2604.05172, SkillJuror 2606.11543), the *nearest* work overlaps our own
+  arms: Skill-Retrieval-Augmentation (2604.24594; oracle / inject / progressive-disclosure arms + a
+  model-dependent-loading analysis), "Agentic Skills in the Wild" (2604.04323; force-load /
+  agent-decide / distractor + loading rates), DecisionBench (2605.19099; a preloaded-vs-on-demand
+  ablation), and Skill-Shadowing (2605.24050; selection-error vs context-overhead decomposition). So
+  our delivery-decomposition and model-dependent-engagement results **corroborate** this cluster in a
+  clean statistics setting; they are not the novelty. The distinctive residue is the **domain**, the
+  **validity-correction framing**, and the promoted **validity decomposition** (§9).
+- **The statistics-agent domain is heating up — but on capability, not skills.** StatABench
+  (2606.22977), StatEval, DSAEval, StatQA, and QRData evaluate statistical *capability*; none studies
+  *skills* or uses validity traps. They are the right domain citations and candidate **external task
+  arms** (a contamination-caveated comparison to our authored traps).
+- **Methodology posture vs 2026 norms.** Two deliberate strengths: the authored traps are
+  **contamination-free by construction** (contamination is a headline credibility problem this year),
+  and scoring is **deterministic / closed-form** (sidestepping contested LLM-as-judge reliability). The
+  trade-off is instrument size — ~9 traps at N=5 — well below field norms; the higher-N campaign (§15)
+  and an external benchmark arm are the fixes. Our engagement metric aligns with the emerging
+  **Skill Coverage** adequacy line (arXiv 2606.20659).
 
 ---
 
@@ -281,8 +322,11 @@ Executing model-generated code is the security- and reproducibility-critical lay
   read-rate 16%, MC read-freq 0.8, others 0). At N=5 the *cell-level* read×pass barely separates
   (no-reads pile up on already-solved tasks); the **per-task** read-frequency isolates the mechanism,
   and the higher N of §15 will power the per-trial story the headline can't yet support.
-- **Seams left for deferred work (interfaces only):** `ValidityScorer`, `ErrorModeClassifier`,
-  `IntegrityProbe`.
+- **Now active — the `ValidityScorer` (§0 novelty direction).** Beyond pass/fail, score whether the
+  skill corrected the *specific* validity error (method / assumptions / interpretation / fabrication),
+  deterministically where possible (was the assumption check run? was the correction applied?) with a
+  validated judge only where unavoidable — preserving the contamination-free / deterministic strengths.
+- **Seams left for deferred work (interfaces only):** `ErrorModeClassifier`, `IntegrityProbe`.
 
 ---
 
@@ -421,7 +465,8 @@ deadline is not close, so quality wins over speed.)
    mechanism, by injection or activation). Bonus: descriptions (L0) carry nameable fixes but the body
    is needed for procedural ones. See FINDINGS Phase 7. Closes the §0 loop.
 4. **Model axis — Sonnet 4.6 alongside Haiku (§4 model factor). ✅ BUILT + smoke-validated.** A
-   `model × delivery` grid on both arms. **Capability reframes the thesis:** the lever is *relevance
+   `model × delivery` grid on both arms. **Model choice reframes the thesis** (n=2, model-dependent per
+   SRA — not a capability law): the lever is *relevance
    routing*, not "agentic" per se — Haiku under-reads (selective, agentic wins), Sonnet over-reads
    (non-selective, agentic ties inject-all and loses to relevant-injection); oracle-relevant injection
    is the robust optimum (Sonnet + relevant = **100% on both arms**). Capability shrinks headroom
@@ -451,14 +496,23 @@ deadline is not close, so quality wins over speed.)
      (dev = Vite proxy; prod = the API's opt-in `STATSKILLS_WEB_DIST` static mount, one
      origin). Flipping the toggle and re-running *is* the demo — the §0 finding made
      interactive. The web app (§11) is now complete.
-   - **Headline campaign** (±Opus, N≥20 over the `model × delivery` grid + `make_figures.py`,
-     deferred for now) tightens the CIs for the writeup.
+   - **Headline campaign** (higher N over the `model × delivery` grid + `make_figures.py`) — plus
+     **Opus and a cross-vendor model** (GPT-5.5 / Gemini 3.1 Pro): enough model points to tell whether
+     the Haiku/Sonnet engagement difference is a *trend* or a *model-idiosyncrasy* (SRA cautions the
+     latter), and to check whether the effect **washes out** as frontier models solve the traps
+     unaided (the mid-capability-window hypothesis). Deferred; tightens the CIs for the writeup.
+
+7. **Validity decomposition (the novelty direction — active).** Build the `ValidityScorer` (§9): for
+   each trajectory, score whether the skill corrected the *specific* validity error, not just
+   pass/fail — the one measurement the tool-domain neighbors (SRA, in-the-wild, DecisionBench)
+   structurally cannot make. This is where the contribution stops being a clean replication and becomes
+   distinctive; run it across the ≥3-model sweep above.
 
 ### Future (seamed)
 
-`self_generated` content control; `description_match` / `model_choice` routers; validity
-decomposition, error-mode classification, integrity probing; multi-agent sweep; cross-vendor models;
-skills-vs-RAG (procedural vs declarative).
+`self_generated` content control; `description_match` / `model_choice` routers; error-mode
+classification, integrity probing; multi-agent sweep; skills-vs-RAG (procedural vs declarative).
+(**Validity decomposition** and **cross-vendor / ≥3-model sweep** are promoted to the active plan above.)
 
 ---
 
@@ -472,6 +526,18 @@ skills-vs-RAG (procedural vs declarative).
   export optional.
 - Web UI stack specifics (framework, styling) — deferred to implementation; the contract (jobs + SSE +
   toggle, inward dependency rule) is what's locked.
+- **External benchmark arm.** Whether to adopt a StatABench / StatEval slice as a comparable
+  (contamination-caveated) arm alongside the authored traps, to grow the instrument past ~9 tasks.
+- **L0-description vs L1-body probe.** Phases 6–7 showed the L0 discovery surface itself flips
+  *nameable* fixes; a probe should separate that description nudge from the body-read effect.
+- **≥3-model + cross-vendor sweep** (Opus, GPT-5.5 / Gemini 3.1 Pro) to tell whether the Haiku/Sonnet
+  engagement difference is a *trend* or a *model-idiosyncrasy* (SRA's caution) — not to confirm a
+  "reversal."
+- **Validity-decomposition scope.** How to score "fixed the specific validity error" reliably —
+  deterministic checks where possible, a validated judge only where unavoidable — keeping the
+  contamination-free / deterministic strengths.
+- **Mid-capability-window test.** Whether to include Opus / a frontier cross-vendor model specifically
+  to see if the delivery effect survives or washes out as traps become solvable unaided.
 
 ---
 
@@ -495,3 +561,14 @@ skills-vs-RAG (procedural vs declarative).
 - Anthropic Agent Skills open standard — agentskills.io; github.com/anthropics/skills.
 - Report-generation patterns: structured-output schema (LlamaIndex); two-layer structured-summary +
   interactive front end with traceability (clinical RAG+LLM report gen, MDPI AI 6(8):188).
+- Concurrent delivery/injection work (the general phenomenon): SWE-Skills-Bench — arXiv 2603.15401;
+  SkillsInjector — arXiv 2605.29794; SkillReducer — arXiv 2603.29919; SKILL0 — arXiv 2604.02268;
+  ClawsBench — arXiv 2604.05172; SkillJuror — arXiv 2606.11543; Skill Coverage / SBC — arXiv 2606.20659.
+- Nearest-neighbor work (same delivery/loading arms): Skill-Retrieval-Augmentation (oracle / inject /
+  progressive-disclosure + model-dependent loading) — arXiv 2604.24594; "How Well Do Agentic Skills
+  Work in the Wild" (force-load / agent-decide / distractor) — arXiv 2604.04323; DecisionBench
+  (preloaded-vs-on-demand delivery ablation) — arXiv 2605.19099; Skill-Shadowing (selection-error vs
+  context-overhead) — arXiv 2605.24050; "stronger backbones defer more" — arXiv 2606.14476.
+- Statistics-agent benchmarks (capability, not skills): StatABench — arXiv 2606.22977; StatEval,
+  DSAEval, StatQA, QRData.
+- Frontier model panel (mid-2026): Claude Opus 4.8 / Sonnet 4.6 / Haiku 4.5; GPT-5.5; Gemini 3.1 Pro.
